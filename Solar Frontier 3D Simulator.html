@@ -1,0 +1,4395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title data-i18n="title">SOLAR FRONTIER — Space Colonization Simulator (HD & Mobile)</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "simplex-noise": "https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/dist/esm/simplex-noise.js"
+      }
+    }
+  </script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000000;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #e0f2fe;
+      touch-action: none;
+    }
+
+    #game-canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Эффект визора скафандра */
+    .visor-vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      background: radial-gradient(circle at center, transparent 58%, rgba(2, 8, 20, 0.45) 88%, rgba(0, 4, 12, 0.85) 100%);
+      box-shadow: inset 0 0 60px rgba(56, 189, 248, 0.08);
+    }
+
+    /* Стартовый экран / Меню паузы */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(10, 18, 36, 0.82) 0%, rgba(2, 4, 10, 0.96) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      padding: 16px;
+    }
+
+    .overlay-content {
+      max-width: 760px;
+      width: 100%;
+      padding: 28px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: rgba(11, 18, 34, 0.92);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(56, 189, 248, 0.12);
+      border-radius: 8px;
+      text-align: center;
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+
+    .mission-badge {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #38bdf8;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    h1 {
+      font-size: clamp(26px, 5vw, 40px);
+      letter-spacing: 5px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 6px;
+      text-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 18px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 8px;
+      text-align: left;
+      background: rgba(2, 6, 23, 0.7);
+      padding: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 6px;
+      margin-bottom: 18px;
+      font-size: 12px;
+    }
+
+    .controls-grid span {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: #7dd3fc;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-weight: bold;
+      margin-right: 6px;
+    }
+
+    .quality-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .quality-btn {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #94a3b8;
+      padding: 7px 14px;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .quality-btn.active {
+      border-color: #38bdf8;
+      background: rgba(2, 132, 199, 0.3);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .menu-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      border: 1px solid #38bdf8;
+      padding: 13px 30px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-radius: 5px;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.35);
+    }
+
+    .secondary-btn {
+      background: rgba(15, 23, 42, 0.9);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      padding: 13px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: all 0.2s ease;
+    }
+
+    .primary-btn:hover:not(:disabled), .secondary-btn:hover:not(:disabled) {
+      filter: brightness(1.15);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.7);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Обучающий оверлей */
+    .tutorial-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.82);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 120;
+      backdrop-filter: blur(6px);
+      padding: 16px;
+    }
+
+    .tutorial-card {
+      max-width: 600px;
+      width: 100%;
+      background: #0f172a;
+      border: 2px solid #38bdf8;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 0 40px rgba(56, 189, 248, 0.3);
+      text-align: left;
+    }
+
+    .tutorial-step-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #38bdf8;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .tutorial-card h2 {
+      font-size: 22px;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+
+    .tutorial-card p {
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .tutorial-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tutorial-steps-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(148, 163, 184, 0.3);
+    }
+
+    .dot.active {
+      background: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+    }
+
+    /* HUD */
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 22px;
+      height: 22px;
+      pointer-events: none;
+    }
+
+    .crosshair::before, .crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(125, 211, 252, 0.85);
+      box-shadow: 0 0 4px rgba(56, 189, 248, 0.8);
+    }
+    .crosshair::before { top: 10px; left: 4px; right: 4px; height: 2px; }
+    .crosshair::after { left: 10px; top: 4px; bottom: 4px; width: 2px; }
+
+    .hud-top, .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .hud-bottom {
+      align-items: flex-end;
+    }
+
+    .hud-panel {
+      background: rgba(8, 13, 24, 0.8);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-left: 3px solid #38bdf8;
+      padding: 8px 12px;
+      backdrop-filter: blur(6px);
+      border-radius: 5px;
+      min-width: 190px;
+    }
+
+    .hud-panel.center {
+      border-left: 1px solid rgba(56, 189, 248, 0.28);
+      border-top: 3px solid #38bdf8;
+      text-align: center;
+    }
+
+    .hud-panel.right {
+      border-left: 1px solid rgba(56, 189, 248, 0.28);
+      border-right: 3px solid #38bdf8;
+      text-align: right;
+    }
+
+    .panel-title {
+      font-size: 9px;
+      letter-spacing: 1.4px;
+      color: #38bdf8;
+      margin-bottom: 3px;
+      font-weight: 700;
+    }
+
+    .panel-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f8fafc;
+      font-family: 'Consolas', monospace;
+    }
+
+    .panel-sub {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 2px;
+      font-family: 'Consolas', monospace;
+    }
+
+    .suit-panel {
+      min-width: 270px;
+    }
+
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      margin-top: 3px;
+      font-family: 'Consolas', monospace;
+    }
+
+    .val-ok { color: #4ade80; }
+    .val-warn { color: #facc15; }
+    .val-err { color: #f87171; }
+
+    /* Панель быстрого доступа */
+    .quick-bar {
+      position: fixed;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      pointer-events: auto;
+      z-index: 25;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 96%;
+    }
+
+    .quick-btn {
+      background: rgba(12, 20, 38, 0.86);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #bae6fd;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-family: monospace;
+      cursor: pointer;
+      border-radius: 4px;
+      backdrop-filter: blur(4px);
+    }
+
+    .quick-btn:active, .quick-btn:hover {
+      background: rgba(56, 189, 248, 0.3);
+      color: #fff;
+    }
+
+    /* МОБИЛЬНОЕ СЕНСОРНОЕ УПРАВЛЕНИЕ */
+    #mobile-controls {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    #joystick-zone {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.42);
+      border: 2px solid rgba(56, 189, 248, 0.38);
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+    }
+
+    #joystick-knob {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.75) 0%, rgba(2, 132, 199, 0.55) 100%);
+      border: 2px solid #7dd3fc;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+      transform: translate(0px, 0px);
+      pointer-events: none;
+    }
+
+    #touch-look-zone {
+      position: fixed;
+      top: 110px;
+      right: 0;
+      width: 55%;
+      height: calc(100% - 240px);
+      pointer-events: auto;
+    }
+
+    .mobile-action-pad {
+      position: fixed;
+      bottom: 22px;
+      right: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, 56px);
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .m-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(12, 20, 38, 0.72);
+      border: 1.5px solid rgba(56, 189, 248, 0.5);
+      color: #e0f2fe;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .m-btn.primary-action {
+      width: 68px;
+      height: 68px;
+      background: rgba(2, 132, 199, 0.65);
+      border-color: #38bdf8;
+      font-size: 12px;
+    }
+
+    .m-btn:active, .m-btn.active {
+      background: rgba(56, 189, 248, 0.55);
+      transform: scale(0.94);
+    }
+
+    /* Модальные окна */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 90;
+      backdrop-filter: blur(6px);
+      padding: 12px;
+    }
+
+    .modal-window {
+      width: 96%;
+      max-width: 980px;
+      max-height: 88vh;
+      overflow-y: auto;
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.95);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      gap: 10px;
+    }
+
+    .close-btn {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      padding: 7px 12px;
+      cursor: pointer;
+      font-family: monospace;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .buildings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .building-card {
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 5px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .building-card.locked {
+      border-color: rgba(148, 163, 184, 0.2);
+      opacity: 0.82;
+    }
+
+    .b-cat { font-size: 10px; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+    .b-title { font-size: 15px; font-weight: 700; color: #f8fafc; margin: 4px 0 6px; }
+    .b-desc { font-size: 12px; color: #94a3b8; margin-bottom: 8px; line-height: 1.35; }
+    .b-specs { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; font-family: monospace; color: #7dd3fc; margin-bottom: 8px; }
+    .b-cost { background: rgba(2, 6, 23, 0.7); padding: 7px 9px; border-radius: 4px; margin-bottom: 9px; font-size: 11px; font-family: monospace; }
+    .cost-title { color: #64748b; margin-bottom: 3px; }
+
+    .placement-banner {
+      position: fixed;
+      bottom: 165px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(9, 14, 26, 0.92);
+      border: 1px solid #38bdf8;
+      border-radius: 5px;
+      padding: 8px 16px;
+      text-align: center;
+      font-size: 12px;
+      font-family: monospace;
+      z-index: 35;
+      pointer-events: none;
+      width: max-content;
+      max-width: 92%;
+    }
+
+    .inv-layout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .col-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      color: #38bdf8;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+
+    .items-list { display: flex; flex-direction: column; gap: 7px; }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    .item-row.clickable { cursor: pointer; border-color: rgba(56, 189, 248, 0.45); }
+    .item-cat { font-size: 10px; color: #94a3b8; }
+    .item-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .item-count { font-family: monospace; font-size: 14px; font-weight: bold; color: #7dd3fc; }
+    .empty-msg { font-size: 12px; color: #64748b; padding: 10px; border: 1px dashed rgba(148, 163, 184, 0.25); border-radius: 4px; }
+
+    /* Адаптация HUD под смартфоны */
+    @media (max-width: 768px) {
+      .hud-panel {
+        min-width: unset;
+        padding: 5px 8px;
+      }
+      .hud-top .hud-panel {
+        flex: 1 1 30%;
+      }
+      .panel-title { font-size: 8px; }
+      .panel-value { font-size: 11px; }
+      .panel-sub { font-size: 9px; }
+      .hud-bottom {
+        position: fixed;
+        top: 104px;
+        left: 8px;
+        right: 8px;
+        bottom: auto;
+        pointer-events: none;
+      }
+      .suit-panel, .hud-bottom .hud-panel {
+        min-width: unset;
+        flex: 1 1 48%;
+        padding: 5px 8px;
+        background: rgba(8, 13, 24, 0.65);
+      }
+      .perf-panel { display: none; }
+      .telemetry-row { font-size: 9px; margin-top: 2px; }
+      .quick-bar { top: 58px; gap: 4px; }
+      .quick-btn { padding: 4px 7px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+    <div class="visor-vignette"></div>
+
+    <!-- Стартовый экран -->
+    <div id="overlay" class="overlay">
+      <div class="overlay-content">
+        <div class="mission-badge" data-i18n="mission_badge">ПРОГРАММА ARTEMIS-FRONTIER // PBR HD & MOBILE EDITION</div>
+        <h1 data-i18n="game_title">SOLAR FRONTIER</h1>
+        <p class="subtitle" data-i18n="game_subtitle">Реалистичный 3D-симулятор космической колонизации Луны и Марса</p>
+        
+        <div class="quality-row">
+          <button class="quality-btn" data-q="low" data-i18n="q_low">Графика: Мобильная (60 FPS)</button>
+          <button class="quality-btn active" data-q="high" data-i18n="q_high">Графика: Ультра PBR (Тени + Normal Maps)</button>
+        </div>
+
+        <div class="controls-grid">
+          <div><span data-i18n="c_pc1">ПК: WASD + Мышь</span> — <span data-i18n="c_pc1_desc">Передвижение и обзор</span></div>
+          <div><span data-i18n="c_pc2">ПК: SPACE / SHIFT</span> — <span data-i18n="c_pc2_desc">Прыжок / Ускорение</span></div>
+          <div><span data-i18n="c_pc3">ПК: ЛКМ / E / B</span> — <span data-i18n="c_pc3_desc">Лазер / Терминал / Стройка</span></div>
+          <div><span data-i18n="c_pc4">ПК: M / N / TAB</span> — <span data-i18n="c_pc4_desc">Карта / Наука / Рюкзак</span></div>
+          <div><span data-i18n="c_m1">Телефон: Стик слева</span> — <span data-i18n="c_m1_desc">Ходьба и бег</span></div>
+          <div><span data-i18n="c_m2">Телефон: Свайп справа</span> — <span data-i18n="c_m2_desc">Поворот камеры</span></div>
+          <div><span data-i18n="c_m3">Телефон: Кнопки справа</span> — <span data-i18n="c_m3_desc">Лазер, Прыжок, Фонарь, [E]</span></div>
+          <div><span data-i18n="c_save">F5 / F9</span> — <span data-i18n="c_save_desc">Сохранить / Загрузить мир</span></div>
+        </div>
+
+        <div class="menu-actions">
+          <button id="start-btn" class="primary-btn" data-i18n="btn_start">ВЫЙТИ НА ПОВЕРХНОСТЬ</button>
+          <button id="lang-btn" class="secondary-btn">EN / RU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Интерактивное обучение (Tutorial) -->
+    <div id="tutorial-overlay" class="tutorial-overlay hidden">
+      <div class="tutorial-card">
+        <div id="tut-step-badge" class="tutorial-step-title">ШАГ 1 ИЗ 4</div>
+        <h2 id="tut-title">Добро пожаловать в Solar Frontier</h2>
+        <p id="tut-desc">Вы прибыли на лунную базу «Море Спокойствия». Ваша главная задача — выжить в суровых условиях вакуума, добывать минералы и развивать автономную колонию.</p>
+        <div class="tutorial-footer">
+          <div class="tutorial-steps-dots">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+          </div>
+          <button id="tut-next-btn" class="primary-btn" style="padding: 9px 20px; font-size: 12px;">ДАЛЕЕ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Игровой HUD -->
+    <div id="hud" class="hud hidden">
+      <div class="crosshair"></div>
+
+      <div class="hud-top">
+        <div class="hud-panel">
+          <div class="panel-title" data-i18n="hud_location">ЛОКАЦИЯ</div>
+          <div class="panel-value" id="hud-body">ЛУНА (Море Спокойствия)</div>
+          <div class="panel-sub" id="hud-coords">X: 0.0 м | Z: 0.0 м</div>
+        </div>
+        <div class="hud-panel center">
+          <div class="panel-title" data-i18n="hud_time">МИССИОННОЕ ВРЕМЯ</div>
+          <div class="panel-value" id="hud-time">00д 00:00:00 [x1]</div>
+          <div class="panel-sub" id="hud-sun-angle">Солнце: 18.5°</div>
+        </div>
+        <div class="hud-panel right">
+          <div class="panel-title" data-i18n="hud_env">СРЕДА</div>
+          <div class="panel-value" id="hud-gravity">g = 1.62 м/с²</div>
+          <div class="panel-sub" id="hud-atmosphere">Вакуум (0 Па)</div>
+        </div>
+      </div>
+
+      <!-- Панель быстрого доступа -->
+      <div class="quick-bar">
+        <button class="quick-btn" id="qb-inv" data-i18n="qb_inv">Рюкзак</button>
+        <button class="quick-btn" id="qb-build" data-i18n="qb_build">Стройка</button>
+        <button class="quick-btn" id="qb-map" data-i18n="qb_map">Космос</button>
+        <button class="quick-btn" id="qb-res" data-i18n="qb_res">Наука</button>
+        <button class="quick-btn" id="qb-time">Время x1</button>
+        <button class="quick-btn" id="qb-save" data-i18n="qb_save">Сохр.</button>
+        <button class="quick-btn" id="qb-tut" data-i18n="qb_tut">Обучение</button>
+        <button class="quick-btn" id="qb-lang">EN / RU</button>
+      </div>
+
+      <!-- Нижняя панель телеметрии -->
+      <div class="hud-bottom">
+        <div class="hud-panel suit-panel">
+          <div class="panel-title" data-i18n="hud_suit">СКАФАНДР EMU-X</div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_o2">КИСЛОРОД (O₂):</span>
+            <span class="val-ok" id="hud-o2">100.0% (600 г)</span>
+          </div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_temp">ТЕМПЕРАТУРА:</span>
+            <span class="val-ok" id="hud-temp">+21.4 °C</span>
+          </div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_rad">РАДИАЦИЯ:</span>
+            <span class="val-warn" id="hud-rad">0.42 мЗв/ч</span>
+          </div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_speed">СКОРОСТЬ / СВЕТ:</span>
+            <span id="hud-status">0.0 м/с | ВЫКЛ</span>
+          </div>
+        </div>
+
+        <div class="hud-panel" style="min-width: 250px;">
+          <div class="panel-title" data-i18n="hud_power">ЭНЕРГОСЕТЬ И СЖО</div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_net">БАЛАНС СЕТИ:</span>
+            <span id="hud-power-bal" class="val-ok">+0.0 / -0.0 кВт</span>
+          </div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_bat">АКБ БАЗЫ:</span>
+            <span id="hud-bat-bank">Нет АКБ</span>
+          </div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_suitbat">ЗАРЯД EMU:</span>
+            <span id="hud-suit-bat" class="val-ok">100.0%</span>
+          </div>
+          <div class="telemetry-row">
+            <span data-i18n="hud_hp">ЗДОРОВЬЕ / ДРОНЫ:</span>
+            <span id="hud-zone-hp" class="val-ok">100% | Дронов: 0</span>
+          </div>
+        </div>
+
+        <div class="hud-panel perf-panel">
+          <div class="panel-title" data-i18n="hud_sys">СИСТЕМА</div>
+          <div class="panel-sub" id="hud-fps">FPS: 60</div>
+          <div class="panel-sub" id="hud-fuel">Корабль Δv: 11.4 км/с</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Мобильный сенсорный интерфейс -->
+    <div id="mobile-controls" class="hidden">
+      <div id="joystick-zone">
+        <div id="joystick-knob"></div>
+      </div>
+      <div id="touch-look-zone"></div>
+      <div class="mobile-action-pad">
+        <button class="m-btn" id="m-light"><span data-i18n="m_light">СВЕТ</span><br>[F]</button>
+        <button class="m-btn" id="m-interact"><span data-i18n="m_mod">МОДУЛЬ</span><br>[E]</button>
+        <button class="m-btn" id="m-rotate"><span data-i18n="m_rot">ПОВОР.</span><br>[R]</button>
+        <button class="m-btn" id="m-jump" data-i18n="m_jump">ПРЫЖОК</button>
+        <button class="m-btn" id="m-cancel"><span data-i18n="m_canc">ОТМЕНА</span><br>[X]</button>
+        <button class="m-btn primary-action" id="m-action" data-i18n="m_act">ЛАЗЕР /<br>СТРОЙ</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { createNoise2D } from 'simplex-noise';
+
+    // =========================================================================
+    // СЛОВАРЬ ПЕРЕВОДОВ (РУССКИЙ / АНГЛИЙСКИЙ)
+    // =========================================================================
+    let LANG = 'ru';
+    const tr = (ru, en) => (LANG === 'en' ? en : ru);
+
+    const I18N = {
+      ru: {
+        hud_speed: "СКОРОСТЬ / СВЕТ:",
+        close: "ЗАКРЫТЬ",
+        inv_sub: "СНАБЖЕНИЕ И СИНТЕЗ", inv_title: "РЮКЗАК И 3D-ПРИНТЕР", inv_pack: "РЮКЗАК СКАФАНДРА",
+        inv_cargo: "ГРУЗОВОЙ ОТСЕК МОДУЛЯ (Нажмите, чтобы взять)", inv_craft: "3D-ПРИНТЕР (КРАФТ)",
+        build_sub: "ИНЖЕНЕРНЫЙ ТЕРМИНАЛ", build_title: "СТРОИТЕЛЬСТВО БАЗЫ",
+        map_sub: "АСТРОНАВИГАЦИЯ // КЕПЛЕР-3D", map_title: "СОЛНЕЧНАЯ СИСТЕМА",
+        res_sub: "НАУКА И РОБОТОТЕХНИКА", res_title: "ТЕХНОЛОГИИ И ДРОНЫ", res_rovers: "АВТОНОМНЫЕ РОВЕРЫ «ГЕОЛОГ-М1»",
+        death_sub: "КРИТИЧЕСКИЙ ОТКАЗ СЖО", death_title: "АСТРОНАВТ ПОГИБ", respawn: "ЭВАКУАЦИЯ В МОДУЛЬ",
+        title: "SOLAR FRONTIER — Space Colonization Simulator (HD & Mobile)",
+        mission_badge: "ПРОГРАММА ARTEMIS-FRONTIER // PBR HD & MOBILE EDITION",
+        game_title: "SOLAR FRONTIER",
+        game_subtitle: "Реалистичный 3D-симулятор космической колонизации Луны и Марса",
+        q_low: "Графика: Мобильная (60 FPS)",
+        q_high: "Графика: Ультра PBR (Тени + Normal Maps)",
+        c_pc1: "ПК: WASD + Мышь", c_pc1_desc: "Передвижение и обзор",
+        c_pc2: "ПК: SPACE / SHIFT", c_pc2_desc: "Прыжок / Ускорение",
+        c_pc3: "ПК: ЛКМ / E / B", c_pc3_desc: "Лазер / Терминал / Стройка",
+        c_pc4: "ПК: M / N / TAB", c_pc4_desc: "Карта / Наука / Рюкзак",
+        c_m1: "Телефон: Стик слева", c_m1_desc: "Ходьба и бег",
+        c_m2: "Телефон: Свайп справа", c_m2_desc: "Поворот камеры",
+        c_m3: "Телефон: Кнопки справа", c_m3_desc: "Лазер, Прыжок, Фонарь, [E]",
+        c_save: "F5 / F9", c_save_desc: "Сохранить / Загрузить мир",
+        btn_start: "ВЫЙТИ НА ПОВЕРХНОСТЬ",
+        hud_location: "ЛОКАЦИЯ",
+        hud_time: "МИССИОННОЕ ВРЕМЯ",
+        hud_env: "СРЕДА",
+        qb_inv: "Рюкзак", qb_build: "Стройка", qb_map: "Космос", qb_res: "Наука", qb_save: "Сохр.", qb_tut: "Обучение",
+        hud_suit: "СКАФАНДР EMU-X",
+        hud_o2: "КИСЛОРОД (O₂):",
+        hud_temp: "ТЕМПЕРАТУРА:",
+        hud_rad: "РАДИАЦИЯ:",
+        hud_power: "ЭНЕРГОСЕТЬ И СЖО",
+        hud_net: "БАЛАНС СЕТИ:",
+        hud_bat: "АКБ БАЗЫ:",
+        hud_suitbat: "ЗАРЯД EMU:",
+        hud_hp: "ЗДОРОВЬЕ / ДРОНЫ:",
+        hud_sys: "СИСТЕМА",
+        m_light: "СВЕТ", m_mod: "МОДУЛЬ", m_rot: "ПОВОР.", m_jump: "ПРЫЖОК", m_canc: "ОТМЕНА", m_act: "ЛАЗЕР /<br>СТРОЙ"
+      },
+      en: {
+        hud_speed: "SPEED / LIGHT:",
+        close: "CLOSE",
+        inv_sub: "SUPPLY & SYNTHESIS", inv_title: "BACKPACK & 3D PRINTER", inv_pack: "SUIT BACKPACK",
+        inv_cargo: "MODULE CARGO BAY (Click to take)", inv_craft: "3D PRINTER (CRAFTING)",
+        build_sub: "ENGINEERING TERMINAL", build_title: "BASE CONSTRUCTION",
+        map_sub: "ASTRONAVIGATION // KEPLER-3D", map_title: "SOLAR SYSTEM",
+        res_sub: "SCIENCE & ROBOTICS", res_title: "TECHNOLOGIES & DRONES", res_rovers: "AUTONOMOUS ROVERS \"GEOLOG-M1\"",
+        death_sub: "CRITICAL LIFE SUPPORT FAILURE", death_title: "ASTRONAUT DIED", respawn: "EVACUATE TO MODULE",
+        title: "SOLAR FRONTIER — Space Colonization Simulator (HD & Mobile)",
+        mission_badge: "ARTEMIS-FRONTIER PROGRAM // PBR HD & MOBILE EDITION",
+        game_title: "SOLAR FRONTIER",
+        game_subtitle: "Realistic 3D Moon & Mars Space Colonization Simulator",
+        q_low: "Graphics: Mobile (60 FPS)",
+        q_high: "Graphics: Ultra PBR (Shadows + Normal Maps)",
+        c_pc1: "PC: WASD + Mouse", c_pc1_desc: "Movement & Camera view",
+        c_pc2: "PC: SPACE / SHIFT", c_pc2_desc: "Jump / Sprint",
+        c_pc3: "PC: LMB / E / B", c_pc3_desc: "Laser / Terminal / Build",
+        c_pc4: "PC: M / N / TAB", c_pc4_desc: "Map / Science / Inventory",
+        c_m1: "Phone: Left Stick", c_m1_desc: "Walk and run",
+        c_m2: "Phone: Right Swipe", c_m2_desc: "Camera rotation",
+        c_m3: "Phone: Right Buttons", c_m3_desc: "Laser, Jump, Light, [E]",
+        c_save: "F5 / F9", c_save_desc: "Save / Load world",
+        btn_start: "STEP ONTO SURFACE",
+        hud_location: "LOCATION",
+        hud_time: "MISSION TIME",
+        hud_env: "ENVIRONMENT",
+        qb_inv: "Inventory", qb_build: "Build", qb_map: "Space", qb_res: "Science", qb_save: "Save", qb_tut: "Tutorial",
+        hud_suit: "EMU-X SUIT",
+        hud_o2: "OXYGEN (O₂):",
+        hud_temp: "TEMPERATURE:",
+        hud_rad: "RADIATION:",
+        hud_power: "POWER & ECLSS",
+        hud_net: "POWER BALANCE:",
+        hud_bat: "BASE BATTERY:",
+        hud_suitbat: "EMU BATTERY:",
+        hud_hp: "HEALTH / DRONES:",
+        hud_sys: "SYSTEM",
+        m_light: "LIGHT", m_mod: "MODULE", m_rot: "ROT.", m_jump: "JUMP", m_canc: "CANCEL", m_act: "LASER /<br>BUILD"
+      }
+    };
+
+    const TUTORIAL_STEPS = {
+      ru: [
+        {
+          title: "Добро пожаловать в Solar Frontier",
+          desc: "Вы прибыли на посадочный модуль в Море Спокойствия на Луне. Ваша главная цель — выжить в суровых условиях вакуума, добывать минералы и строить базу."
+        },
+        {
+          title: "Добыча ресурсов (Лазер)",
+          desc: "Наведите прицел в центре экрана на геологическую породу (лунные камни или ильменит) и зажмите Левую Кнопку Мыши (или кнопку «Лазер/Строй» на телефоне). Реголит поступит в ваш рюкзак."
+        },
+        {
+          title: "Крафт и Строительство базы",
+          desc: "Откройте инвентарь [TAB] или меню стройки [B]. Из переработанной руды можно синтезировать блоки реголита и титановые сплавы, а затем устанавливать солнечные панели и жилые модули."
+        },
+        {
+          title: "Космическая навигация",
+          desc: "Используйте карту Солнечной системы [M] для перелёта на Марс или другие планеты с помощью вашего межпланетного корабля. Следите за запасом кислорода и батареи в скафандре!"
+        }
+      ],
+      en: [
+        {
+          title: "Welcome to Solar Frontier",
+          desc: "You have arrived at the landing module in the Sea of Tranquility on the Moon. Your primary goal is to survive the vacuum, mine minerals, and build a base."
+        },
+        {
+          title: "Resource Mining (Laser)",
+          desc: "Aim the crosshair at geological rocks or ore deposits and hold the Left Mouse Button (or 'Laser/Build' button on mobile). Harvested materials go straight into your inventory."
+        },
+        {
+          title: "Crafting & Base Building",
+          desc: "Open Inventory [TAB] or Build menu [B]. You can process raw ore into regolith blocks and titanium-iron ingots, then place solar panels and habitable modules."
+        },
+        {
+          title: "Space Navigation",
+          desc: "Use the Solar System Map [M] to travel to Mars or other celestial bodies using your interplanetary spaceship. Always monitor your EMU suit oxygen and battery levels!"
+        }
+      ]
+    };
+
+    // =========================================================================
+    // 1. ФИЗИЧЕСКИЕ КОНСТАНТЫ И АСТРОНОМИЧЕСКИЕ ДАННЫЕ
+    // =========================================================================
+    const PHYSICS_CONSTANTS = {
+      G: 6.67430e-11,
+      EARTH_GRAVITY: 9.80665,
+      STEFAN_BOLTZMANN: 5.670374e-8,
+      SOLAR_CONSTANT_1AU: 1361.0
+    };
+
+    const CELESTIAL_BODIES = {
+      SUN: {
+        id: 'sun', name: 'СОЛНЦЕ', type: 'Звезда (G2V)',
+        gravity: 274.0, color: 0xfff4d2, semiMajorAxisAU: 0, orbitalPeriodDays: 0,
+        description: 'Центральная звезда Солнечной системы.'
+      },
+      MERCURY: {
+        id: 'mercury', name: 'МЕРКУРИЙ', type: 'Планета земной группы',
+        gravity: 3.7, color: 0x9ca3af, semiMajorAxisAU: 0.387098, eccentricity: 0.20563, inclinationDeg: 7.005,
+        orbitalPeriodDays: 87.969, meanLongitudeJ2000Deg: 252.25, deltaVFromMoonKms: 9.8,
+        surfaceComposition: 'Силикаты, металлическое железо-никелевое ядро',
+        description: 'Ближайшая к Солнцу планета с экстремальными перепадами температур.'
+      },
+      VENUS: {
+        id: 'venus', name: 'ВЕНЕРА', type: 'Планета земной группы',
+        gravity: 8.87, color: 0xfde68a, semiMajorAxisAU: 0.723332, eccentricity: 0.006772, inclinationDeg: 3.39458,
+        orbitalPeriodDays: 224.701, meanLongitudeJ2000Deg: 181.98, deltaVFromMoonKms: 6.4,
+        surfaceComposition: 'Базальтовые равнины, плотная атмосфера CO₂ (92 бар)',
+        description: 'Планета с сильнейшим парниковым эффектом.'
+      },
+      EARTH: {
+        id: 'earth', name: 'ЗЕМЛЯ', type: 'Планета земной группы',
+        gravity: 9.80665, color: 0x3b82f6, semiMajorAxisAU: 1.000001, eccentricity: 0.0167086, inclinationDeg: 0.0,
+        orbitalPeriodDays: 365.256, meanLongitudeJ2000Deg: 100.46, deltaVFromMoonKms: 2.5,
+        surfaceComposition: 'Силикатная кора, гидросфера (71%), азотно-кислородная атмосфера',
+        description: 'Колыбель человечества и центр координации программы колонизации.'
+      },
+      MOON: {
+        id: 'moon', name: 'ЛУНА', region: 'Море Спокойствия',
+        type: 'Естественный спутник Земли', parentBody: 'EARTH',
+        gravity: 1.62, surfacePressure: 0.0, hasAtmosphere: false, albedo: 0.12,
+        temperatureMinK: 100, temperatureMaxK: 390,
+        rotationPeriodSec: 2360591.5, semiMajorAxisAU: 0.00257, eccentricity: 0.0549, inclinationDeg: 5.145,
+        orbitalPeriodDays: 27.321, meanLongitudeJ2000Deg: 218.32,
+        solarIrradiance: 1361.0, radiationBackground: 0.42,
+        color: 0xd1d5db, deltaVFromMoonKms: 4.3,
+        surfaceComposition: 'Базальтовый реголит, ильменит (FeTiO₃), анортозит, водяной лёд',
+        description: 'Первый форпост человечества в космосе.',
+        terrainConfig: { seed: 4201969, size: 1200, segments: 240, craterCount: 85 }
+      },
+      MARS: {
+        id: 'mars', name: 'МАРС', region: 'Равнина Утопия',
+        type: 'Планета земной группы',
+        gravity: 3.72076, surfacePressure: 610, hasAtmosphere: true, albedo: 0.25,
+        temperatureMinK: 140, temperatureMaxK: 293,
+        rotationPeriodSec: 88642.68, semiMajorAxisAU: 1.523679, eccentricity: 0.0934, inclinationDeg: 1.85,
+        orbitalPeriodDays: 686.98, meanLongitudeJ2000Deg: 355.45,
+        solarIrradiance: 586.2, radiationBackground: 0.28,
+        color: 0xea580c, deltaVFromMoonKms: 4.3,
+        surfaceComposition: 'Оксиды железа (Fe₂O₃), гематит, водяной лёд, атмосфера CO₂ (610 Па)',
+        description: 'Главная цель межпланетной колонизации. Разреженная атмосфера и пылевые бури.',
+        terrainConfig: { seed: 203507, size: 1300, segments: 240, craterCount: 65 }
+      },
+      JUPITER: {
+        id: 'jupiter', name: 'ЮПИТЕР', type: 'Газовый гигант',
+        gravity: 24.79, color: 0xd97706, semiMajorAxisAU: 5.2044, eccentricity: 0.0489, inclinationDeg: 1.303,
+        orbitalPeriodDays: 4332.59, meanLongitudeJ2000Deg: 34.4, deltaVFromMoonKms: 8.8,
+        surfaceComposition: 'Водород (89.8%), гелий (10.2%)', description: 'Крупнейшая планета Солнечной системы.'
+      },
+      SATURN: {
+        id: 'saturn', name: 'САТУРН', type: 'Газовый гигант',
+        gravity: 10.44, color: 0xfcd34d, semiMajorAxisAU: 9.5826, eccentricity: 0.0565, inclinationDeg: 2.485,
+        orbitalPeriodDays: 10759.22, meanLongitudeJ2000Deg: 49.94, deltaVFromMoonKms: 10.3,
+        surfaceComposition: 'Водород, гелий, система ледяных колец', description: 'Планета с кольцами из водяного льда.'
+      },
+      URANUS: {
+        id: 'uranus', name: 'УРАН', type: 'Ледяной гигант',
+        gravity: 8.69, color: 0x67e8f9, semiMajorAxisAU: 19.2184, eccentricity: 0.0463, inclinationDeg: 0.773,
+        orbitalPeriodDays: 30688.5, meanLongitudeJ2000Deg: 313.23, deltaVFromMoonKms: 11.3,
+        surfaceComposition: 'Водород, гелий, метан, аммиачные льды', description: 'Ледяной гигант.'
+      },
+      NEPTUNE: {
+        id: 'neptune', name: 'НЕПТУН', type: 'Ледяной гигант',
+        gravity: 11.15, color: 0x2563eb, semiMajorAxisAU: 30.11, eccentricity: 0.009456, inclinationDeg: 1.77,
+        orbitalPeriodDays: 60195.0, meanLongitudeJ2000Deg: 304.88, deltaVFromMoonKms: 11.8,
+        surfaceComposition: 'Водород, гелий, метан', description: 'Самая дальняя планета Солнечной системы.'
+      }
+    };
+
+    // =========================================================================
+    // 2. КАТАЛОГИ РЕСУРСОВ, РЕЦЕПТОВ, ЗДАНИЙ И ТЕХНОЛОГИЙ
+    // =========================================================================
+    const ITEMS_CATALOG = {
+      REGOLITH: { id: 'REGOLITH', name: 'Лунный реголит', category: 'Сырьё', massKg: 2.5 },
+      ILMENITE_ORE: { id: 'ILMENITE_ORE', name: 'Ильменитовая руда (FeTiO₃)', category: 'Минерал', massKg: 4.2 },
+      ANORTHOSITE: { id: 'ANORTHOSITE', name: 'Анортозит (CaAl₂Si₂O₈)', category: 'Минерал', massKg: 3.1 },
+      MARTIAN_REGOLITH: { id: 'MARTIAN_REGOLITH', name: 'Марсианский реголит (Fe₂O₃)', category: 'Сырьё (Марс)', massKg: 2.8 },
+      HEMATITE_ORE: { id: 'HEMATITE_ORE', name: 'Гематитовая конкреция', category: 'Минерал (Марс)', massKg: 4.5 },
+      SUBSURFACE_ICE: { id: 'SUBSURFACE_ICE', name: 'Водяной лёд (H₂O)', category: 'Летучие', massKg: 1.0 },
+      REGOLITH_BLOCK: { id: 'REGOLITH_BLOCK', name: 'Спечённый реголитовый блок', category: 'Стройматериал', massKg: 8.0 },
+      TI_FE_INGOT: { id: 'TI_FE_INGOT', name: 'Титано-железный сплав', category: 'Металл', massKg: 6.5 },
+      SILICON_WAFER: { id: 'SILICON_WAFER', name: 'Кремниевая пластина', category: 'Электроника', massKg: 1.2 },
+      RATION_PACK: { id: 'RATION_PACK', name: 'Ремкомплект / Пайки', category: 'Снаряжение', massKg: 1.5 }
+    };
+
+    const CRAFTING_RECIPES = [
+      { id: 'RECIPE_REGOLITH_BLOCK', outputItem: 'REGOLITH_BLOCK', outputCount: 1, inputs: { REGOLITH: 4 } },
+      { id: 'RECIPE_TI_FE_INGOT', outputItem: 'TI_FE_INGOT', outputCount: 1, inputs: { ILMENITE_ORE: 2, REGOLITH: 1 } },
+      { id: 'RECIPE_SILICON_WAFER', outputItem: 'SILICON_WAFER', outputCount: 2, inputs: { ANORTHOSITE: 2 } },
+      { id: 'RECIPE_MARS_BLOCK', outputItem: 'REGOLITH_BLOCK', outputCount: 1, inputs: { MARTIAN_REGOLITH: 4 } },
+      { id: 'RECIPE_MARS_INGOT', outputItem: 'TI_FE_INGOT', outputCount: 1, inputs: { HEMATITE_ORE: 2, MARTIAN_REGOLITH: 1 } }
+    ];
+
+    const BUILDINGS_CATALOG = {
+      SOLAR_PANEL: {
+        id: 'SOLAR_PANEL', name: 'Солнечная панель (СБ-4)', category: 'Энергетика',
+        description: 'Фотоэлектрическая установка с двухосевым трекером Солнца. Генерирует до 4.5 кВт.',
+        footprintRadius: 2.2, powerGenerationMaxW: 4500, powerConsumptionW: 0,
+        cost: { REGOLITH_BLOCK: 2, TI_FE_INGOT: 3, SILICON_WAFER: 4 }
+      },
+      BATTERY_BANK: {
+        id: 'BATTERY_BANK', name: 'Аккумуляторный блок (АКБ-20)', category: 'Энергетика',
+        description: 'Накопитель энергии 20 кВт·ч с активным термостатированием.',
+        footprintRadius: 1.8, powerGenerationMaxW: 0, powerConsumptionW: 50, energyCapacityWh: 20000,
+        cost: { REGOLITH_BLOCK: 2, TI_FE_INGOT: 4, SILICON_WAFER: 2 }
+      },
+      RTG_GENERATOR: {
+        id: 'RTG_GENERATOR', name: 'Ядерный РИТЭГ-3', category: 'Энергетика',
+        description: 'Радиоизотопный генератор. Стабильные 3.2 кВт днём, ночью и в пылевую бурю.',
+        footprintRadius: 1.6, powerGenerationMaxW: 3200, isConstantPower: true, powerConsumptionW: 0,
+        requiresTech: 'RTG_NUCLEAR_POWER', cost: { TI_FE_INGOT: 5, SILICON_WAFER: 3 }
+      },
+      STORAGE_CRATE: {
+        id: 'STORAGE_CRATE', name: 'Грузовой контейнер (СК-500)', category: 'Инфраструктура',
+        description: 'Герметичный внешний складской модуль для ресурсов.',
+        footprintRadius: 1.6, powerGenerationMaxW: 0, powerConsumptionW: 10, storageCapacityKg: 500,
+        cost: { REGOLITH_BLOCK: 3, TI_FE_INGOT: 2 }
+      },
+      HAB_MODULE: {
+        id: 'HAB_MODULE', name: 'Жилой модуль «Селена-1»', category: 'Жизнеобеспечение',
+        description: 'Герметичный отсек со шлюзом и радиационной защитой. Пополняет O₂, заряд и тепло.',
+        footprintRadius: 4.2, powerGenerationMaxW: 0, powerConsumptionW: 2200, isPressurized: true,
+        cost: { REGOLITH_BLOCK: 6, TI_FE_INGOT: 5, SILICON_WAFER: 3 }
+      }
+    };
+
+    const TECHNOLOGIES_CATALOG = {
+      IMPROVED_SUIT_INSULATION: {
+        id: 'IMPROVED_SUIT_INSULATION', name: 'Аэрогелевая термоизоляция EMU', branch: 'Материаловедение',
+        description: 'Снижает потери тепла в глубокой тени на 50%, экономя батарею скафандра.',
+        researchTimeSec: 10, cost: { REGOLITH: 3, ANORTHOSITE: 2 }
+      },
+      AUTONOMOUS_MINING_DRONE: {
+        id: 'AUTONOMOUS_MINING_DRONE', name: 'Автономный ровер-шахтёр «Геолог-М1»', branch: 'Робототехника',
+        description: 'Открывает сборку роботов с ИИ для автоматической добычи породы.',
+        researchTimeSec: 12, cost: { ILMENITE_ORE: 2, SILICON_WAFER: 2 }
+      },
+      RTG_NUCLEAR_POWER: {
+        id: 'RTG_NUCLEAR_POWER', name: 'Радиоизотопный генератор (РИТЭГ-3)', branch: 'Энергетика',
+        description: 'Открывает строительство автономного ядерного источника питания (3.2 кВт).',
+        researchTimeSec: 15, cost: { TI_FE_INGOT: 3, SILICON_WAFER: 2 }
+      },
+      METHALOX_PROPULSION: {
+        id: 'METHALOX_PROPULSION', name: 'Метан-кислородный ЖРД «Арес-РД»', branch: 'Двигатели',
+        description: 'Повышает удельный импульс (Isp = 380 с) межпланетного корабля.',
+        researchTimeSec: 15, cost: { TI_FE_INGOT: 4, REGOLITH_BLOCK: 3 }
+      }
+    };
+
+    // --- Английские версии каталогов (подмена полей через геттеры) ---
+    function localizeCatalog(cat, en) {
+      for (const [key, fields] of Object.entries(en)) {
+        const obj = cat[key];
+        if (!obj) continue;
+        for (const [f, enVal] of Object.entries(fields)) {
+          const ruVal = obj[f];
+          Object.defineProperty(obj, f, { get: () => (LANG === 'en' ? enVal : ruVal), enumerable: true, configurable: true });
+        }
+      }
+    }
+
+    localizeCatalog(CELESTIAL_BODIES, {
+      SUN: { name: 'SUN', type: 'Star (G2V)', description: 'The central star of the Solar System.' },
+      MERCURY: { name: 'MERCURY', type: 'Terrestrial planet', surfaceComposition: 'Silicates, metallic iron-nickel core', description: 'The closest planet to the Sun, with extreme temperature swings.' },
+      VENUS: { name: 'VENUS', type: 'Terrestrial planet', surfaceComposition: 'Basaltic plains, dense CO₂ atmosphere (92 bar)', description: 'A planet with the strongest greenhouse effect.' },
+      EARTH: { name: 'EARTH', type: 'Terrestrial planet', surfaceComposition: 'Silicate crust, hydrosphere (71%), nitrogen-oxygen atmosphere', description: 'The cradle of humanity and the coordination center of the colonization program.' },
+      MOON: { name: 'MOON', region: 'Sea of Tranquility', type: 'Natural satellite of Earth', surfaceComposition: 'Basaltic regolith, ilmenite (FeTiO₃), anorthosite, water ice', description: "Humanity's first outpost in space." },
+      MARS: { name: 'MARS', region: 'Utopia Planitia', type: 'Terrestrial planet', surfaceComposition: 'Iron oxides (Fe₂O₃), hematite, water ice, CO₂ atmosphere (610 Pa)', description: 'The main target of interplanetary colonization. Thin atmosphere and dust storms.' },
+      JUPITER: { name: 'JUPITER', type: 'Gas giant', surfaceComposition: 'Hydrogen (89.8%), helium (10.2%)', description: 'The largest planet in the Solar System.' },
+      SATURN: { name: 'SATURN', type: 'Gas giant', surfaceComposition: 'Hydrogen, helium, system of icy rings', description: 'A planet with rings made of water ice.' },
+      URANUS: { name: 'URANUS', type: 'Ice giant', surfaceComposition: 'Hydrogen, helium, methane, ammonia ices', description: 'An ice giant.' },
+      NEPTUNE: { name: 'NEPTUNE', type: 'Ice giant', surfaceComposition: 'Hydrogen, helium, methane', description: 'The most distant planet of the Solar System.' }
+    });
+
+    localizeCatalog(ITEMS_CATALOG, {
+      REGOLITH: { name: 'Lunar regolith', category: 'Raw material' },
+      ILMENITE_ORE: { name: 'Ilmenite ore (FeTiO₃)', category: 'Mineral' },
+      ANORTHOSITE: { name: 'Anorthosite (CaAl₂Si₂O₈)', category: 'Mineral' },
+      MARTIAN_REGOLITH: { name: 'Martian regolith (Fe₂O₃)', category: 'Raw material (Mars)' },
+      HEMATITE_ORE: { name: 'Hematite concretion', category: 'Mineral (Mars)' },
+      SUBSURFACE_ICE: { name: 'Water ice (H₂O)', category: 'Volatiles' },
+      REGOLITH_BLOCK: { name: 'Sintered regolith block', category: 'Building material' },
+      TI_FE_INGOT: { name: 'Titanium-iron alloy', category: 'Metal' },
+      SILICON_WAFER: { name: 'Silicon wafer', category: 'Electronics' },
+      RATION_PACK: { name: 'Repair kit / Solder', category: 'Equipment' }
+    });
+
+    localizeCatalog(BUILDINGS_CATALOG, {
+      SOLAR_PANEL: { name: 'Solar panel (SP-4)', category: 'Power', description: 'Photovoltaic array with a dual-axis sun tracker. Generates up to 4.5 kW.' },
+      BATTERY_BANK: { name: 'Battery bank (BB-20)', category: 'Power', description: '20 kWh energy storage with active thermal control.' },
+      RTG_GENERATOR: { name: 'Nuclear RTG-3', category: 'Power', description: 'Radioisotope generator. Steady 3.2 kW by day, at night and during dust storms.' },
+      STORAGE_CRATE: { name: 'Cargo container (SC-500)', category: 'Infrastructure', description: 'Sealed external storage module for resources.' },
+      HAB_MODULE: { name: 'Habitat module "Selena-1"', category: 'Life support', description: 'Pressurized compartment with an airlock and radiation shielding. Restores O₂, charge and heat.' }
+    });
+
+    localizeCatalog(TECHNOLOGIES_CATALOG, {
+      IMPROVED_SUIT_INSULATION: { name: 'Aerogel EMU thermal insulation', branch: 'Materials science', description: 'Reduces heat loss in deep shadow by 50%, saving suit battery.' },
+      AUTONOMOUS_MINING_DRONE: { name: 'Autonomous mining rover "Geolog-M1"', branch: 'Robotics', description: 'Unlocks assembly of AI robots for automatic rock mining.' },
+      RTG_NUCLEAR_POWER: { name: 'Radioisotope generator (RTG-3)', branch: 'Power', description: 'Unlocks construction of an autonomous nuclear power source (3.2 kW).' },
+      METHALOX_PROPULSION: { name: 'Methane-oxygen engine "Ares-RD"', branch: 'Propulsion', description: 'Increases the specific impulse (Isp = 380 s) of the interplanetary ship.' }
+    });
+
+    // =========================================================================
+    // 3. ПРОЦЕДУРНЫЙ PBR-ГЕНЕРАТОР ТЕКСТУР (DIFFUSE + NORMAL MAP + ROUGHNESS)
+    // =========================================================================
+    class PBRTextureFactory {
+      static generatePlanetaryTextures(isMars, seed = 1337) {
+        const size = 512;
+        const noise = createNoise2D(() => {
+          seed = (seed * 16807) % 2147483647;
+          return (seed - 1) / 2147483646;
+        });
+
+        const heightField = new Float32Array(size * size);
+        const diffCanvas = document.createElement('canvas');
+        diffCanvas.width = size; diffCanvas.height = size;
+        const diffCtx = diffCanvas.getContext('2d');
+        const diffImg = diffCtx.createImageData(size, size);
+
+        const roughCanvas = document.createElement('canvas');
+        roughCanvas.width = size; roughCanvas.height = size;
+        const roughCtx = roughCanvas.getContext('2d');
+        const roughImg = roughCtx.createImageData(size, size);
+
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const nx = (x / size) * Math.PI * 2;
+            const ny = (y / size) * Math.PI * 2;
+            const n1 = noise(Math.cos(nx) * 3, Math.sin(ny) * 3) * 0.5;
+            const n2 = noise(Math.sin(nx) * 8 + 5, Math.cos(ny) * 8 + 5) * 0.25;
+            const micro = (Math.random() - 0.5) * 0.25;
+            const h = n1 + n2 + micro;
+            const idx = y * size + x;
+            heightField[idx] = h;
+
+            const pIdx = idx * 4;
+            const shade = h * 26;
+            if (isMars) {
+              diffImg.data[pIdx] = Math.min(255, Math.max(0, 174 + shade));
+              diffImg.data[pIdx + 1] = Math.min(255, Math.max(0, 90 + shade * 0.75));
+              diffImg.data[pIdx + 2] = Math.min(255, Math.max(0, 52 + shade * 0.5));
+            } else {
+              const base = Math.min(255, Math.max(0, 96 + shade));
+              diffImg.data[pIdx] = base;
+              diffImg.data[pIdx + 1] = base;
+              diffImg.data[pIdx + 2] = Math.min(255, base + 3);
+            }
+            diffImg.data[pIdx + 3] = 255;
+
+            const rVal = Math.min(255, Math.max(180, 232 - h * 25));
+            roughImg.data[pIdx] = rVal;
+            roughImg.data[pIdx + 1] = rVal;
+            roughImg.data[pIdx + 2] = rVal;
+            roughImg.data[pIdx + 3] = 255;
+          }
+        }
+        diffCtx.putImageData(diffImg, 0, 0);
+        roughCtx.putImageData(roughImg, 0, 0);
+
+        const normCanvas = document.createElement('canvas');
+        normCanvas.width = size; normCanvas.height = size;
+        const normCtx = normCanvas.getContext('2d');
+        const normImg = normCtx.createImageData(size, size);
+        const strength = 2.6;
+
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const xm = (x - 1 + size) % size;
+            const xp = (x + 1) % size;
+            const ym = (y - 1 + size) % size;
+            const yp = (y + 1) % size;
+
+            const dx = (heightField[y * size + xp] - heightField[y * size + xm]) * strength;
+            const dy = (heightField[yp * size + x] - heightField[ym * size + x]) * strength;
+            const len = Math.hypot(dx, dy, 1.0);
+
+            const pIdx = (y * size + x) * 4;
+            normImg.data[pIdx] = ((-dx / len) * 0.5 + 0.5) * 255;
+            normImg.data[pIdx + 1] = ((-dy / len) * 0.5 + 0.5) * 255;
+            normImg.data[pIdx + 2] = ((1.0 / len) * 0.5 + 0.5) * 255;
+            normImg.data[pIdx + 3] = 255;
+          }
+        }
+        normCtx.putImageData(normImg, 0, 0);
+
+        const wrap = (canvas, isColor = false) => {
+          const t = new THREE.CanvasTexture(canvas);
+          t.wrapS = THREE.RepeatWrapping;
+          t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(95, 95);
+          if (isColor) t.colorSpace = THREE.SRGBColorSpace;
+          return t;
+        };
+
+        return {
+          map: wrap(diffCanvas, true),
+          normalMap: wrap(normCanvas, false),
+          roughnessMap: wrap(roughCanvas, false)
+        };
+      }
+    }
+
+    // =========================================================================
+    // 4. УЛУЧШЕННЫЙ ЗВУКОВОЙ СИНТЕЗАТОР (WEB AUDIO API)
+    // =========================================================================
+    class SoundManager {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.isMuted = false;
+        this.isInitialized = false;
+        this.stepTimer = 0;
+        this.alarmTimer = 0;
+        this.laserOsc = null;
+        this.laserGain = null;
+        this.windGain = null;
+        this.suitHumGain = null;
+      }
+
+      init() {
+        if (this.isInitialized) {
+          if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+          return;
+        }
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+
+        this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.36;
+        this.masterGain.connect(this.ctx.destination);
+
+        const bufferSize = this.ctx.sampleRate * 2;
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        let lastOut = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          data[i] = (lastOut + 0.04 * white) / 1.04;
+          lastOut = data[i];
+          data[i] *= 2.6;
+        }
+        this.noiseBuffer = noiseBuffer;
+
+        const suitOsc = this.ctx.createOscillator();
+        suitOsc.type = 'sine';
+        suitOsc.frequency.value = 58;
+        this.suitHumGain = this.ctx.createGain();
+        this.suitHumGain.gain.value = 0.035;
+        suitOsc.connect(this.suitHumGain);
+        this.suitHumGain.connect(this.masterGain);
+        suitOsc.start();
+
+        const windSource = this.ctx.createBufferSource();
+        windSource.buffer = noiseBuffer;
+        windSource.loop = true;
+        const windFilter = this.ctx.createBiquadFilter();
+        windFilter.type = 'bandpass';
+        windFilter.frequency.value = 260;
+        windFilter.Q.value = 1.6;
+        this.windGain = this.ctx.createGain();
+        this.windGain.gain.value = 0.0;
+        windSource.connect(windFilter);
+        windFilter.connect(this.windGain);
+        this.windGain.connect(this.masterGain);
+        windSource.start();
+
+        this.laserOsc = this.ctx.createOscillator();
+        this.laserOsc.type = 'sawtooth';
+        this.laserOsc.frequency.value = 115;
+        this.laserGain = this.ctx.createGain();
+        this.laserGain.gain.value = 0.0;
+        this.laserOsc.connect(this.laserGain);
+        this.laserGain.connect(this.masterGain);
+        this.laserOsc.start();
+
+        this.isInitialized = true;
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.masterGain && this.ctx) {
+          this.masterGain.gain.setTargetAtTime(this.isMuted ? 0.0 : 0.36, this.ctx.currentTime, 0.05);
+        }
+        return !this.isMuted;
+      }
+
+      playFootstep() {
+        if (!this.isInitialized || this.isMuted || !this.noiseBuffer) return;
+        const now = this.ctx.currentTime;
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(420 + Math.random() * 140, now);
+        filter.Q.value = 1.2;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.32, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+        src.start(now);
+        src.stop(now + 0.17);
+      }
+
+      playBuildSuccess() {
+        if (!this.isInitialized || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(540, now + 0.2);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+
+      playAlertBeep() {
+        if (!this.isInitialized || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(660, now + 0.12);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+
+      update(dt, { isGrounded, horizontalSpeed, isMining, stormIntensity, isMars, lowO2OrBattery }) {
+        if (!this.isInitialized) return;
+        const now = this.ctx.currentTime;
+
+        if (isGrounded && horizontalSpeed > 0.4) {
+          const stepInterval = Math.max(0.32, 0.72 - horizontalSpeed * 0.06);
+          this.stepTimer += dt;
+          if (this.stepTimer >= stepInterval) {
+            this.stepTimer = 0;
+            this.playFootstep();
+          }
+        } else {
+          this.stepTimer = 0.25;
+        }
+
+        if (this.laserGain) {
+          this.laserGain.gain.setTargetAtTime(isMining ? 0.13 : 0.0, now, 0.04);
+          if (isMining) this.laserOsc.frequency.setValueAtTime(105 + Math.random() * 35, now);
+        }
+
+        if (this.windGain) {
+          this.windGain.gain.setTargetAtTime(isMars ? 0.03 + stormIntensity * 0.28 : 0.0, now, 0.2);
+        }
+
+        if (lowO2OrBattery) {
+          this.alarmTimer += dt;
+          if (this.alarmTimer >= 4.0) {
+            this.alarmTimer = 0;
+            this.playAlertBeep();
+          }
+        } else {
+          this.alarmTimer = 3.5;
+        }
+      }
+    }
+
+    // =========================================================================
+    // 5. СОХРАНЕНИЯ В INDEXEDDB
+    // =========================================================================
+    class SaveManager {
+      constructor() {
+        this.dbName = 'SolarFrontierDB_HD';
+        this.storeName = 'saves';
+      }
+
+      openDB() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(this.dbName, 1);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(this.storeName)) {
+              db.createObjectStore(this.storeName, { keyPath: 'slotId' });
+            }
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+
+      async saveGame(slotId, game) {
+        const db = await this.openDB();
+        const saveData = {
+          slotId,
+          timestamp: new Date().toISOString(),
+          bodyKey: game.currentBody.id.toUpperCase(),
+          missionSeconds: game.timeManager.elapsedMissionSeconds,
+          player: {
+            x: game.player.position.x, y: game.player.position.y, z: game.player.position.z,
+            yaw: game.player.euler.y, pitch: game.player.euler.x
+          },
+          inventory: { ...game.inventory.items },
+          landerCargo: { ...game.lander.cargoStorage },
+          suit: {
+            oxygenGrams: game.suitSystem.oxygenGrams,
+            batteryWh: game.suitSystem.batteryWh,
+            internalTempC: game.suitSystem.internalTempC,
+            health: game.suitSystem.health,
+            accumulatedDoseMsv: game.suitSystem.accumulatedDoseMsv
+          },
+          buildings: game.buildingManager.buildings.map((b) => ({
+            id: b.id, x: b.position.x, y: b.position.y, z: b.position.z,
+            rotationY: b.rotationY, storedEnergyWh: b.storedEnergyWh
+          })),
+          unlockedTechs: Array.from(game.researchManager.unlockedTechs),
+          robotCount: game.robotAI.robots.length,
+          spaceshipFuelKg: game.spaceship.fuelKg
+        };
+
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(this.storeName, 'readwrite');
+          tx.objectStore(this.storeName).put(saveData);
+          tx.oncomplete = () => resolve(saveData);
+          tx.onerror = () => reject(tx.error);
+        });
+      }
+
+      async loadGame(slotId) {
+        const db = await this.openDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(this.storeName, 'readonly');
+          const req = tx.objectStore(this.storeName).get(slotId);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => reject(req.error);
+        });
+      }
+    }
+
+    // =========================================================================
+    // 6. ЯДРО СЦЕНЫ, ВРЕМЕНИ И ОРБИТАЛЬНОЙ МЕХАНИКИ
+    // =========================================================================
+    class TimeManager {
+      constructor(bodyConfig) {
+        this.bodyConfig = bodyConfig;
+        this.elapsedMissionSeconds = 0;
+        this.timeScales = [1, 10, 60, 300, 3600, 86400];
+        this.scaleIndex = 0;
+        this.timeScale = 1;
+        this.initialSunElevationRad = THREE.MathUtils.degToRad(18.5);
+        this.sunElevationRad = this.initialSunElevationRad;
+        this.sunAzimuthRad = THREE.MathUtils.degToRad(115);
+      }
+
+      cycleTimeScale() {
+        this.scaleIndex = (this.scaleIndex + 1) % this.timeScales.length;
+        this.timeScale = this.timeScales[this.scaleIndex];
+        return this.timeScale;
+      }
+
+      increaseTimeScale() {
+        this.scaleIndex = Math.min(this.timeScales.length - 1, this.scaleIndex + 1);
+        this.timeScale = this.timeScales[this.scaleIndex];
+      }
+
+      decreaseTimeScale() {
+        this.scaleIndex = Math.max(0, this.scaleIndex - 1);
+        this.timeScale = this.timeScales[this.scaleIndex];
+      }
+
+      update(dt) {
+        const scaledDt = dt * this.timeScale;
+        this.elapsedMissionSeconds += scaledDt;
+        const angularVelocity = (2 * Math.PI) / this.bodyConfig.rotationPeriodSec;
+        this.sunElevationRad = this.initialSunElevationRad + this.elapsedMissionSeconds * angularVelocity;
+        return scaledDt;
+      }
+
+      getSunElevationDegrees() { return THREE.MathUtils.radToDeg(this.sunElevationRad); }
+
+      getFormattedMET() {
+        const totalSec = Math.floor(this.elapsedMissionSeconds);
+        const days = Math.floor(totalSec / 86400);
+        const hours = Math.floor((totalSec % 86400) / 3600);
+        const minutes = Math.floor((totalSec % 3600) / 60);
+        const seconds = totalSec % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(days)}${tr('д', 'd')} ${pad(hours)}:${pad(minutes)}:${pad(seconds)} [x${this.timeScale}]`;
+      }
+    }
+
+    class SolarSystem {
+      constructor() {
+        this.bodies = CELESTIAL_BODIES;
+        this.positionsAU = {};
+        this.epochDays = 9800.0;
+        this.update(0);
+      }
+
+      solveKeplerEquation(meanAnomalyRad, eccentricity) {
+        let E = meanAnomalyRad;
+        for (let iter = 0; iter < 6; iter++) {
+          const f = E - eccentricity * Math.sin(E) - meanAnomalyRad;
+          const fPrime = 1.0 - eccentricity * Math.cos(E);
+          E -= f / fPrime;
+        }
+        return E;
+      }
+
+      computeOrbitalPosition(body, elapsedDays) {
+        if (!body.semiMajorAxisAU || body.orbitalPeriodDays <= 0) return new THREE.Vector3(0, 0, 0);
+        const a = body.semiMajorAxisAU;
+        const e = body.eccentricity || 0;
+        const incRad = THREE.MathUtils.degToRad(body.inclinationDeg || 0);
+        const l0Rad = THREE.MathUtils.degToRad(body.meanLongitudeJ2000Deg || 0);
+        const n = (2 * Math.PI) / body.orbitalPeriodDays;
+        const M = (l0Rad + n * elapsedDays) % (2 * Math.PI);
+        const E = this.solveKeplerEquation(M, e);
+        const xOrb = a * (Math.cos(E) - e);
+        const zOrb = a * Math.sqrt(1 - e * e) * Math.sin(E);
+        return new THREE.Vector3(xOrb, zOrb * Math.sin(incRad), zOrb * Math.cos(incRad));
+      }
+
+      update(missionElapsedSeconds) {
+        const elapsedDays = this.epochDays + missionElapsedSeconds / 86400.0;
+        for (const [key, body] of Object.entries(this.bodies)) {
+          if (!body.parentBody) this.positionsAU[key] = this.computeOrbitalPosition(body, elapsedDays);
+        }
+        for (const [key, body] of Object.entries(this.bodies)) {
+          if (body.parentBody && this.positionsAU[body.parentBody]) {
+            const relPos = this.computeOrbitalPosition(body, elapsedDays).multiplyScalar(18.0);
+            this.positionsAU[key] = this.positionsAU[body.parentBody].clone().add(relPos);
+          }
+        }
+      }
+
+      getDistanceAU(keyA, keyB) {
+        const posA = this.positionsAU[keyA];
+        const posB = this.positionsAU[keyB];
+        return posA && posB ? posA.distanceTo(posB) : 0;
+      }
+    }
+
+    class SceneManager {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.quality = 'high';
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: this.canvas,
+          antialias: true,
+          powerPreference: 'high-performance',
+          logarithmicDepthBuffer: true
+        });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.15;
+
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
+
+        this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500000);
+        this.scene.add(this.camera);
+
+        this.sunLight = new THREE.DirectionalLight(0xfff9f0, 4.2);
+        this.sunLight.castShadow = true;
+        const ext = 110;
+        this.sunLight.shadow.camera.left = -ext;
+        this.sunLight.shadow.camera.right = ext;
+        this.sunLight.shadow.camera.top = ext;
+        this.sunLight.shadow.camera.bottom = -ext;
+        this.sunLight.shadow.camera.near = 1;
+        this.sunLight.shadow.camera.far = 600;
+        this.sunLight.shadow.mapSize.width = 2048;
+        this.sunLight.shadow.mapSize.height = 2048;
+        this.sunLight.shadow.bias = -0.0004;
+        this.scene.add(this.sunLight, this.sunLight.target);
+
+        this.hemiLight = new THREE.HemisphereLight(0x4a6b82, 0x1a1a1d, 0.22);
+        this.scene.add(this.hemiLight);
+
+        window.addEventListener('resize', () => {
+          this.camera.aspect = window.innerWidth / window.innerHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      }
+
+      setQuality(q) {
+        this.quality = q;
+        if (q === 'low') {
+          this.renderer.setPixelRatio(1);
+          this.sunLight.shadow.mapSize.width = 1024;
+          this.sunLight.shadow.mapSize.height = 1024;
+        } else {
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          this.sunLight.shadow.mapSize.width = 2048;
+          this.sunLight.shadow.mapSize.height = 2048;
+        }
+        if (this.sunLight.shadow.map) {
+          this.sunLight.shadow.map.dispose();
+          this.sunLight.shadow.map = null;
+        }
+      }
+
+      updateSunAndShadows(playerPosition, sunDirection) {
+        this.sunLight.position.copy(playerPosition).addScaledVector(sunDirection, 250);
+        this.sunLight.target.position.copy(playerPosition);
+        this.sunLight.target.updateMatrixWorld();
+      }
+
+      render() {
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    // =========================================================================
+    // 7. PBR-ЛАНДШАФТ, НЕБО С ШЕЙДЕРНОЙ ЗЕМЛЁЙ И СОЛНЕЧНОЙ КОРОНОЙ
+    // =========================================================================
+    class PlanetaryTerrain {
+      constructor(bodyConfig, isMars = false) {
+        this.config = bodyConfig.terrainConfig;
+        this.size = this.config.size;
+        this.segments = this.config.segments;
+        this.isMars = isMars;
+
+        this.rng = this.createSeededRandom(this.config.seed);
+        this.noise2D = createNoise2D(this.rng);
+        this.craters = this.generateCraters(this.config.craterCount);
+
+        this.mesh = this.buildTerrainMesh();
+        this.scatterRocks();
+      }
+
+      createSeededRandom(seed) {
+        let s = seed % 2147483647;
+        if (s <= 0) s += 2147483646;
+        return () => {
+          s = (s * 16807) % 2147483647;
+          return (s - 1) / 2147483646;
+        };
+      }
+
+      generateCraters(count) {
+        const craters = [];
+        const halfSize = this.size * 0.45;
+        for (let i = 0; i < count; i++) {
+          const rNorm = Math.pow(this.rng(), this.isMars ? 2.2 : 2.6);
+          const radius = (this.isMars ? 10 : 6) + rNorm * 75;
+          const x = (this.rng() * 2 - 1) * halfSize;
+          const z = (this.rng() * 2 - 1) * halfSize;
+          if (Math.hypot(x, z) < radius + 16) continue;
+
+          craters.push({
+            x, z, radius,
+            depth: radius * (this.isMars ? 0.12 : 0.2),
+            rimHeight: radius * (this.isMars ? 0.035 : 0.055)
+          });
+        }
+        return craters;
+      }
+
+      getHeightAt(x, z) {
+        let height = 0;
+        if (this.isMars) {
+          height += this.noise2D(x * 0.0022, z * 0.0022) * 7.0;
+          height += this.noise2D(x * 0.01, z * 0.01) * 1.6;
+          height += Math.sin(x * 0.14 + this.noise2D(x * 0.02, z * 0.02) * 2.5) * 0.25;
+        } else {
+          height += this.noise2D(x * 0.003, z * 0.003) * 4.5;
+          height += this.noise2D(x * 0.012, z * 0.012) * 1.2;
+          height += this.noise2D(x * 0.06, z * 0.06) * 0.18;
+        }
+
+        for (let i = 0; i < this.craters.length; i++) {
+          const c = this.craters[i];
+          const dx = x - c.x;
+          const dz = z - c.z;
+          const distSq = dx * dx + dz * dz;
+          const maxInf = c.radius * 1.45;
+          if (distSq < maxInf * maxInf) {
+            const dist = Math.sqrt(distSq);
+            const r = dist / c.radius;
+            if (r < 1.0) {
+              height += (r * r - 1.0) * c.depth + Math.pow(r, 4) * c.rimHeight;
+            } else if (r < 1.45) {
+              const t = (r - 1.0) / 0.45;
+              const ejecta = Math.cos(t * Math.PI * 0.5);
+              height += ejecta * ejecta * c.rimHeight;
+            }
+          }
+        }
+        return height;
+      }
+
+      buildTerrainMesh() {
+        const geometry = new THREE.PlaneGeometry(this.size, this.size, this.segments, this.segments);
+        geometry.rotateX(-Math.PI / 2);
+
+        const posAttr = geometry.attributes.position;
+        const colors = new Float32Array(posAttr.count * 3);
+
+        for (let i = 0; i < posAttr.count; i++) {
+          const x = posAttr.getX(i);
+          const z = posAttr.getZ(i);
+          posAttr.setY(i, this.getHeightAt(x, z));
+
+          const shade = 0.84 + this.noise2D(x * 0.02, z * 0.02) * 0.18;
+          colors[i * 3] = this.isMars ? shade * 1.05 : shade;
+          colors[i * 3 + 1] = this.isMars ? shade * 0.92 : shade;
+          colors[i * 3 + 2] = this.isMars ? shade * 0.85 : shade;
+        }
+
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.computeVertexNormals();
+
+        const pbr = PBRTextureFactory.generatePlanetaryTextures(this.isMars, this.config.seed);
+        const material = new THREE.MeshStandardMaterial({
+          map: pbr.map,
+          normalMap: pbr.normalMap,
+          normalScale: new THREE.Vector2(1.3, 1.3),
+          roughnessMap: pbr.roughnessMap,
+          vertexColors: true,
+          roughness: 0.95,
+          metalness: 0.04
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.receiveShadow = true;
+        mesh.castShadow = true;
+        return mesh;
+      }
+
+      scatterRocks() {
+        const rockCount = 1400;
+        const rockGeo = new THREE.DodecahedronGeometry(0.45, 1);
+        const pos = rockGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const vx = pos.getX(i);
+          const vy = pos.getY(i);
+          const vz = pos.getZ(i);
+          const n = 0.8 + this.noise2D(vx * 3.2, vz * 3.2) * 0.35;
+          pos.setXYZ(i, vx * n, vy * n * 0.65, vz * n);
+        }
+        rockGeo.computeVertexNormals();
+
+        const rockMat = new THREE.MeshStandardMaterial({
+          color: this.isMars ? 0x7c3f2c : 0x676a70,
+          roughness: 0.92,
+          metalness: 0.06
+        });
+
+        const instancedRocks = new THREE.InstancedMesh(rockGeo, rockMat, rockCount);
+        instancedRocks.castShadow = true;
+        instancedRocks.receiveShadow = true;
+
+        const dummy = new THREE.Object3D();
+        const halfSize = this.size * 0.45;
+        for (let i = 0; i < rockCount; i++) {
+          const rx = (this.rng() * 2 - 1) * halfSize;
+          const rz = (this.rng() * 2 - 1) * halfSize;
+          const ry = this.getHeightAt(rx, rz);
+
+          dummy.position.set(rx, ry - 0.05, rz);
+          dummy.rotation.set(this.rng() * Math.PI, this.rng() * Math.PI, this.rng() * Math.PI);
+          const scale = 0.22 + Math.pow(this.rng(), 3.1) * 3.0;
+          dummy.scale.set(scale, scale * 0.65, scale);
+          dummy.updateMatrix();
+          instancedRocks.setMatrixAt(i, dummy.matrix);
+        }
+        instancedRocks.instanceMatrix.needsUpdate = true;
+        this.mesh.add(instancedRocks);
+      }
+    }
+
+    class SkyDome {
+      constructor() {
+        this.group = new THREE.Group();
+        this.createStarField();
+        this.createSunVisual();
+        this.createEarthVisual();
+      }
+
+      createStarField() {
+        const bgCount = 7500;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(bgCount * 3);
+        const colors = new Float32Array(bgCount * 3);
+
+        const spectral = [0x9bb0ff, 0xaabfff, 0xcad7ff, 0xf8f7ff, 0xfff4ea, 0xffd2a1, 0xffcc6f].map(
+          (hex) => new THREE.Color(hex)
+        );
+        const radius = 350000;
+
+        for (let i = 0; i < bgCount; i++) {
+          const isMilkyWay = Math.random() < 0.38;
+          const theta = 2 * Math.PI * Math.random();
+          const phi = isMilkyWay
+            ? Math.PI * 0.5 + (Math.random() - 0.5) * (Math.random() - 0.5) * 0.42
+            : Math.acos(2 * Math.random() - 1);
+
+          let x = radius * Math.sin(phi) * Math.cos(theta);
+          let y = radius * Math.cos(phi);
+          let z = radius * Math.sin(phi) * Math.sin(theta);
+
+          if (isMilkyWay) {
+            const tilt = THREE.MathUtils.degToRad(60);
+            const yR = y * Math.cos(tilt) - z * Math.sin(tilt);
+            const zR = y * Math.sin(tilt) + z * Math.cos(tilt);
+            y = yR; z = zR;
+          }
+
+          positions[i * 3] = x;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = z;
+
+          const col = spectral[Math.floor(Math.random() * spectral.length)];
+          const br = isMilkyWay ? 0.25 + Math.random() * 0.45 : 0.35 + Math.pow(Math.random(), 2) * 0.65;
+          colors[i * 3] = col.r * br;
+          colors[i * 3 + 1] = col.g * br;
+          colors[i * 3 + 2] = col.b * br;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        this.stars = new THREE.Points(
+          geometry,
+          new THREE.PointsMaterial({ size: 680, sizeAttenuation: true, vertexColors: true })
+        );
+        this.group.add(this.stars);
+      }
+
+      createSunVisual() {
+        this.sunGroup = new THREE.Group();
+        const disk = new THREE.Mesh(
+          new THREE.SphereGeometry(2800, 32, 32),
+          new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        const coronaCanvas = document.createElement('canvas');
+        coronaCanvas.width = 256; coronaCanvas.height = 256;
+        const ctx = coronaCanvas.getContext('2d');
+        const grad = ctx.createRadialGradient(128, 128, 12, 128, 128, 128);
+        grad.addColorStop(0, 'rgba(255, 252, 240, 1)');
+        grad.addColorStop(0.25, 'rgba(255, 235, 190, 0.55)');
+        grad.addColorStop(0.6, 'rgba(180, 215, 255, 0.14)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 256, 256);
+        const coronaTex = new THREE.CanvasTexture(coronaCanvas);
+
+        const sprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({ map: coronaTex, blending: THREE.AdditiveBlending, depthWrite: false })
+        );
+        sprite.scale.set(26000, 26000, 1);
+        this.sunGroup.add(disk, sprite);
+        this.group.add(this.sunGroup);
+      }
+
+      createEarthVisual() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#082f73';
+        ctx.fillRect(0, 0, 1024, 512);
+        ctx.fillStyle = '#256038';
+        for (let i = 0; i < 65; i++) {
+          ctx.beginPath();
+          ctx.arc(Math.random() * 1024, 80 + Math.random() * 352, 18 + Math.random() * 48, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, 1024, 42);
+        ctx.fillRect(0, 470, 1024, 42);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.62)';
+        for (let i = 0; i < 180; i++) {
+          ctx.beginPath();
+          ctx.ellipse(Math.random() * 1024, Math.random() * 512, 24 + Math.random() * 68, 6 + Math.random() * 14, (Math.random() - 0.5) * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+
+        this.earthGroup = new THREE.Group();
+        this.earthMesh = new THREE.Mesh(
+          new THREE.SphereGeometry(10200, 48, 48),
+          new THREE.MeshStandardMaterial({ map: tex, roughness: 0.65, metalness: 0.05 })
+        );
+        const atmoMesh = new THREE.Mesh(
+          new THREE.SphereGeometry(10650, 48, 48),
+          new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.16, side: THREE.BackSide })
+        );
+        this.earthGroup.add(this.earthMesh, atmoMesh);
+        this.earthOffset = new THREE.Vector3(-120000, 195000, -180000);
+        this.group.add(this.earthGroup);
+      }
+
+      update(playerPosition, elevationRad, azimuthRad) {
+        this.stars.position.copy(playerPosition);
+        const sunDir = new THREE.Vector3(
+          Math.cos(elevationRad) * Math.cos(azimuthRad),
+          Math.sin(elevationRad),
+          Math.cos(elevationRad) * Math.sin(azimuthRad)
+        ).normalize();
+
+        this.sunGroup.position.copy(playerPosition).addScaledVector(sunDir, 300000);
+        this.earthGroup.position.copy(playerPosition).add(this.earthOffset);
+        this.earthMesh.rotation.y += 0.0002;
+        return sunDir;
+      }
+    }
+
+    class DustStormSystem {
+      constructor(scene) {
+        this.scene = scene;
+        this.isActiveOnCurrentBody = false;
+        this.stormIntensity = 0.0;
+        this.targetStormIntensity = 0.0;
+        this.stormTimer = 180.0;
+
+        const skyGeo = new THREE.SphereGeometry(280000, 32, 24);
+        this.skyMat = new THREE.ShaderMaterial({
+          side: THREE.BackSide,
+          depthWrite: false,
+          uniforms: {
+            sunDirection: { value: new THREE.Vector3(0, 0.3, -1) },
+            stormFactor: { value: 0.0 }
+          },
+          vertexShader: `
+            varying vec3 vWorldDir;
+            void main() {
+              vWorldDir = normalize(position);
+              gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 sunDirection;
+            uniform float stormFactor;
+            varying vec3 vWorldDir;
+            void main() {
+              vec3 dir = normalize(vWorldDir);
+              float sunElev = max(0.0, sunDirection.y);
+              float dayFactor = smoothstep(-0.08, 0.25, sunDirection.y);
+              vec3 zenithDay = vec3(0.42, 0.24, 0.14);
+              vec3 horizonDay = vec3(0.76, 0.45, 0.25);
+              vec3 stormColor = vec3(0.58, 0.27, 0.12);
+              vec3 nightColor = vec3(0.01, 0.015, 0.03);
+              float horizonGradient = pow(1.0 - max(0.0, dir.y), 2.4);
+              vec3 sky = mix(zenithDay, horizonDay, horizonGradient);
+              sky = mix(sky, stormColor, stormFactor * 0.85);
+              sky = mix(nightColor, sky, dayFactor);
+              float sunCos = max(0.0, dot(dir, normalize(sunDirection)));
+              float sunsetFactor = 1.0 - smoothstep(0.0, 0.35, sunElev);
+              vec3 haloColor = mix(vec3(1.0, 0.85, 0.65), vec3(0.45, 0.68, 0.95), sunsetFactor);
+              float halo = pow(sunCos, 18.0) * 0.45 * dayFactor * (1.0 - stormFactor * 0.8);
+              gl_FragColor = vec4(sky + haloColor * halo, 1.0);
+            }
+          `
+        });
+
+        this.atmosphereMesh = new THREE.Mesh(skyGeo, this.skyMat);
+        this.atmosphereMesh.visible = false;
+        this.scene.add(this.atmosphereMesh);
+
+        const count = 2400;
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+          pos[i * 3] = (Math.random() - 0.5) * 60;
+          pos[i * 3 + 1] = Math.random() * 14;
+          pos[i * 3 + 2] = (Math.random() - 0.5) * 60;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        this.dustPoints = new THREE.Points(
+          geo,
+          new THREE.PointsMaterial({ color: 0xd97736, size: 0.14, transparent: true, opacity: 0.55 })
+        );
+        this.dustPoints.visible = false;
+        this.scene.add(this.dustPoints);
+      }
+
+      setEnabled(enabled) {
+        this.isActiveOnCurrentBody = enabled;
+        this.atmosphereMesh.visible = enabled;
+        this.dustPoints.visible = enabled;
+        if (!enabled) {
+          this.stormIntensity = 0;
+          this.targetStormIntensity = 0;
+          this.scene.fog = null;
+        } else {
+          this.scene.fog = new THREE.FogExp2(0x9a5530, 0.0018);
+        }
+      }
+
+      toggleStormManual() {
+        if (!this.isActiveOnCurrentBody) return false;
+        this.targetStormIntensity = this.targetStormIntensity > 0.5 ? 0.0 : 1.0;
+        return true;
+      }
+
+      update(dt, playerPosition, sunDir) {
+        if (!this.isActiveOnCurrentBody) return;
+        this.atmosphereMesh.position.copy(playerPosition);
+        this.skyMat.uniforms.sunDirection.value.copy(sunDir);
+
+        this.stormTimer -= dt;
+        if (this.stormTimer <= 0) {
+          this.targetStormIntensity = this.targetStormIntensity < 0.5 ? 1.0 : 0.0;
+          this.stormTimer = this.targetStormIntensity > 0.5 ? 95.0 : 240.0;
+        }
+
+        this.stormIntensity += (this.targetStormIntensity - this.stormIntensity) * Math.min(1, 0.25 * dt);
+        this.skyMat.uniforms.stormFactor.value = this.stormIntensity;
+
+        if (this.scene.fog) {
+          this.scene.fog.density = THREE.MathUtils.lerp(0.0015, 0.032, this.stormIntensity);
+        }
+
+        const windSpeed = 4.0 + this.stormIntensity * 22.0;
+        const posAttr = this.dustPoints.geometry.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+          let px = posAttr.getX(i) + windSpeed * dt;
+          let py = posAttr.getY(i) + Math.sin(px * 0.3 + i) * 0.4 * dt;
+          let pz = posAttr.getZ(i) + windSpeed * 0.35 * dt;
+          if (px > 30) px -= 60;
+          if (pz > 30) pz -= 60;
+          if (py < 0) py = 12;
+          posAttr.setXYZ(i, px, py, pz);
+        }
+        posAttr.needsUpdate = true;
+        this.dustPoints.position.copy(playerPosition);
+        this.dustPoints.material.opacity = 0.25 + this.stormIntensity * 0.55;
+      }
+
+      getSolarTransmittance() {
+        return this.isActiveOnCurrentBody ? 1.0 - this.stormIntensity * 0.75 : 1.0;
+      }
+    }
+
+    // =========================================================================
+    // 8. СКАФАНДР, КОНТРОЛЛЕР ПЕРСОНАЖА (ПК + ТАЧ) И ИНВЕНТАРЬ
+    // =========================================================================
+    class ThermalSystem {
+      constructor(bodyConfig) {
+        this.bodyConfig = bodyConfig;
+        this.raycaster = new THREE.Raycaster();
+        this.raycaster.far = 500;
+      }
+
+      isPointInSunlight(position, sunDir, occluders = []) {
+        if (sunDir.y <= 0.01) return false;
+        const origin = position.clone().add(new THREE.Vector3(0, 0.9, 0));
+        this.raycaster.set(origin, sunDir);
+        return this.raycaster.intersectObjects(occluders, true).length === 0;
+      }
+
+      calculateAmbientTempC(inSunlight, sunDir, isPressurized) {
+        if (isPressurized) return 21.5;
+        if (!inSunlight || sunDir.y <= 0) return this.bodyConfig.temperatureMinK - 273.15;
+
+        const sinElev = Math.max(0.05, sunDir.y);
+        const absorbedFlux = this.bodyConfig.solarIrradiance * (1 - this.bodyConfig.albedo) * sinElev;
+        const tempK = Math.pow(absorbedFlux / (0.92 * PHYSICS_CONSTANTS.STEFAN_BOLTZMANN), 0.25);
+        return Math.max(this.bodyConfig.temperatureMinK, Math.min(this.bodyConfig.temperatureMaxK, tempK)) - 273.15;
+      }
+    }
+
+    class RadiationSystem {
+      constructor(bodyConfig) { this.baseBackgroundMsvPerHour = bodyConfig.radiationBackground || 0.42; }
+      getCurrentDoseRate(inSunlight, isInHabModule, isNearLander) {
+        let rate = this.baseBackgroundMsvPerHour;
+        if (inSunlight) rate += 0.18;
+        if (isInHabModule) rate *= 0.15;
+        else if (isNearLander) rate *= 0.5;
+        return rate;
+      }
+    }
+
+    class SuitSystem {
+      constructor() {
+        this.maxOxygenGrams = 600.0;
+        this.oxygenGrams = 600.0;
+        this.maxBatteryWh = 850.0;
+        this.batteryWh = 850.0;
+        this.internalTempC = 21.2;
+        this.ambientTempC = 21.2;
+        this.health = 100.0;
+        this.accumulatedDoseMsv = 0.0;
+        this.currentDoseRateMsvH = 0.0;
+        this.powerDrawW = 0;
+        this.thermalLossMultiplier = 1.0;
+        this.isPressurizedSafeZone = false;
+        this.isDead = false;
+        this.deathReason = '';
+      }
+
+      update(dt, ctx) {
+        if (this.isDead) return;
+        this.ambientTempC = ctx.ambientTempC;
+        this.currentDoseRateMsvH = ctx.doseRateMsvH;
+
+        this.isPressurizedSafeZone = (ctx.isInHabModule && ctx.baseHasPower) || ctx.isNearLander;
+
+        if (this.isPressurizedSafeZone) {
+          this.oxygenGrams = Math.min(this.maxOxygenGrams, this.oxygenGrams + 35.0 * dt);
+          this.batteryWh = Math.min(this.maxBatteryWh, this.batteryWh + 60.0 * dt);
+          this.internalTempC += (21.5 - this.internalTempC) * Math.min(1, 1.5 * dt);
+          this.health = Math.min(100, this.health + 4.0 * dt);
+          this.powerDrawW = 0;
+        } else {
+          const exertion = 1.0 + (ctx.horizontalSpeed / 3.0) * 1.6 + (ctx.cargoMassKg / 120.0) * 0.7;
+          this.oxygenGrams = Math.max(0, this.oxygenGrams - 0.016 * exertion * dt);
+
+          let drawW = 65.0 + (ctx.flashlightOn ? 25.0 : 0);
+          const thermalW = Math.abs(ctx.ambientTempC - 21.0) * 0.85 * this.thermalLossMultiplier;
+
+          if (this.batteryWh > 0) {
+            drawW += thermalW;
+            const targetT = ctx.ambientTempC < 0 ? 19.5 : 23.0;
+            this.internalTempC += (targetT - this.internalTempC) * Math.min(1, 0.5 * dt);
+          } else {
+            this.internalTempC += (ctx.ambientTempC - this.internalTempC) * Math.min(1, 0.08 * dt);
+          }
+
+          this.powerDrawW = drawW;
+          this.batteryWh = Math.max(0, this.batteryWh - (drawW * dt) / 3600);
+        }
+
+        this.accumulatedDoseMsv += (ctx.doseRateMsvH * dt) / 3600;
+
+        if (this.oxygenGrams <= 0) {
+          this.health -= 8.0 * dt;
+          if (this.health <= 0) this.triggerDeath(tr('Критическая гипоксия: запас кислорода исчерпан.', 'Critical hypoxia: oxygen supply depleted.'));
+        }
+        if (this.internalTempC < 5.0 || this.internalTempC > 42.0) {
+          this.health -= 5.0 * dt;
+          if (this.health <= 0) {
+            this.triggerDeath(this.internalTempC < 5.0 ? tr('Гипотермия в глубокой тени.', 'Hypothermia in deep shadow.') : tr('Тепловой удар: отказ охлаждения.', 'Heat stroke: cooling failure.'));
+          }
+        }
+      }
+
+      triggerDeath(reason) {
+        this.health = 0;
+        this.isDead = true;
+        this.deathReason = reason;
+      }
+
+      respawnAtLander() {
+        this.oxygenGrams = this.maxOxygenGrams;
+        this.batteryWh = this.maxBatteryWh;
+        this.internalTempC = 21.5;
+        this.health = 100.0;
+        this.isDead = false;
+        this.deathReason = '';
+      }
+
+      getOxygenPercent() { return (this.oxygenGrams / this.maxOxygenGrams) * 100; }
+      getBatteryPercent() { return (this.batteryWh / this.maxBatteryWh) * 100; }
+    }
+
+    class Inventory {
+      constructor(maxMassKg = 120.0) {
+        this.maxMassKg = maxMassKg;
+        this.items = {};
+        this.onChangeCallbacks = [];
+      }
+      onChange(cb) { this.onChangeCallbacks.push(cb); }
+      notifyChange() { this.onChangeCallbacks.forEach((cb) => cb(this)); }
+      getTotalMassKg() {
+        let total = 0;
+        for (const [id, count] of Object.entries(this.items)) {
+          const def = ITEMS_CATALOG[id];
+          if (def && count > 0) total += def.massKg * count;
+        }
+        return total;
+      }
+      getItemCount(id) { return this.items[id] || 0; }
+      canAddItem(id, count = 1) {
+        const def = ITEMS_CATALOG[id];
+        return def ? this.getTotalMassKg() + def.massKg * count <= this.maxMassKg + 0.001 : false;
+      }
+      addItem(id, count = 1) {
+        if (!this.canAddItem(id, count)) return false;
+        this.items[id] = (this.items[id] || 0) + count;
+        this.notifyChange();
+        return true;
+      }
+      removeItem(id, count = 1) {
+        const cur = this.getItemCount(id);
+        if (cur < count) return false;
+        this.items[id] = cur - count;
+        if (this.items[id] <= 0) delete this.items[id];
+        this.notifyChange();
+        return true;
+      }
+    }
+
+    class PlayerController {
+      constructor(camera, terrain, bodyConfig) {
+        this.camera = camera;
+        this.terrain = terrain;
+        this.gravity = bodyConfig.gravity;
+        this.baseSuitMassKg = 145.0;
+
+        this.standingEyeHeight = 1.75;
+        this.crouchingEyeHeight = 1.10;
+        this.currentEyeHeight = this.standingEyeHeight;
+
+        const startY = this.terrain.getHeightAt(0, 0);
+        this.position = new THREE.Vector3(0, startY, 0);
+        this.velocity = new THREE.Vector3(0, 0, 0);
+
+        this.walkSpeed = 3.4;
+        this.sprintSpeed = 6.2;
+        this.jumpImpulse = 3.8;
+        this.groundAcceleration = 18.0;
+        this.airControl = 0.16;
+        this.groundFriction = 7.5;
+
+        this.isGrounded = false;
+        this.isCrouching = false;
+        this.flashlightOn = false;
+        this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        this.keys = {};
+        this.touchMove = { x: 0, y: 0 };
+
+        this.flashlight = new THREE.SpotLight(0xf0f8ff, 14.0, 75, Math.PI / 4.8, 0.38, 1.4);
+        this.flashlight.visible = false;
+        this.flashlight.position.set(0.15, 0.1, 0);
+        this.flashlight.target.position.set(0, -0.05, -1);
+        this.camera.add(this.flashlight, this.flashlight.target);
+
+        this.buildToolViewModel();
+
+        document.addEventListener('keydown', (e) => {
+          this.keys[e.code] = true;
+          if (e.code === 'KeyF') this.toggleFlashlight();
+          if (e.code === 'Space') this.jump();
+        });
+        document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+        document.addEventListener('mousemove', (e) => {
+          if (document.pointerLockElement !== document.body) return;
+          this.rotateCamera(-e.movementX * 0.002, -e.movementY * 0.002);
+        });
+      }
+
+      buildToolViewModel() {
+        this.toolGroup = new THREE.Group();
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, 0.11, 0.34),
+          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35, metalness: 0.8 })
+        );
+        const barrel = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.022, 0.028, 0.16, 12),
+          new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.9 })
+        );
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(0, 0.015, -0.22);
+
+        const tip = new THREE.Mesh(
+          new THREE.SphereGeometry(0.024, 8, 8),
+          new THREE.MeshBasicMaterial({ color: 0xff5500 })
+        );
+        tip.position.set(0, 0.015, -0.30);
+
+        this.toolGroup.add(body, barrel, tip);
+        this.toolGroup.position.set(0.28, -0.26, -0.45);
+        this.camera.add(this.toolGroup);
+      }
+
+      rotateCamera(dYaw, dPitch) {
+        this.euler.y += dYaw;
+        this.euler.x = Math.max(-Math.PI * 0.49, Math.min(Math.PI * 0.49, this.euler.x + dPitch));
+        this.camera.quaternion.setFromEuler(this.euler);
+      }
+
+      toggleFlashlight() {
+        this.flashlightOn = !this.flashlightOn;
+        this.flashlight.visible = this.flashlightOn;
+        return this.flashlightOn;
+      }
+
+      jump() {
+        if (this.isGrounded) {
+          this.velocity.y = this.jumpImpulse;
+          this.isGrounded = false;
+        }
+      }
+
+      updateEquipmentMass(cargoMassKg) {
+        const ratio = this.baseSuitMassKg / (this.baseSuitMassKg + cargoMassKg);
+        this.groundAcceleration = 18.0 * ratio;
+        this.groundFriction = 7.5 * ratio;
+        this.walkSpeed = 3.4 * (0.7 + 0.3 * ratio);
+        this.sprintSpeed = 6.2 * (0.65 + 0.35 * ratio);
+      }
+
+      lockControls() {
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return;
+        try {
+          document.body.requestPointerLock();
+        } catch (err) {}
+      }
+
+      updatePhysics(dt) {
+        this.isCrouching = Boolean(this.keys['ControlLeft'] || this.keys['ControlRight']);
+        const targetEye = this.isCrouching ? this.crouchingEyeHeight : this.standingEyeHeight;
+        this.currentEyeHeight += (targetEye - this.currentEyeHeight) * 10 * dt;
+
+        const forward = new THREE.Vector3();
+        this.camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+        const moveDir = new THREE.Vector3();
+
+        if (this.keys['KeyW']) moveDir.add(forward);
+        if (this.keys['KeyS']) moveDir.sub(forward);
+        if (this.keys['KeyD']) moveDir.add(right);
+        if (this.keys['KeyA']) moveDir.sub(right);
+
+        if (Math.hypot(this.touchMove.x, this.touchMove.y) > 0.08) {
+          moveDir.addScaledVector(right, this.touchMove.x);
+          moveDir.addScaledVector(forward, -this.touchMove.y);
+        }
+
+        const inputMag = Math.min(1, moveDir.length());
+        if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+        const touchSprinting = Math.hypot(this.touchMove.x, this.touchMove.y) > 0.85;
+        const isSprinting = (Boolean(this.keys['ShiftLeft']) || touchSprinting) && !this.isCrouching;
+        const maxSpeed = (this.isCrouching ? this.walkSpeed * 0.5 : isSprinting ? this.sprintSpeed : this.walkSpeed) * (inputMag || 1);
+
+        if (this.isGrounded) {
+          const accel = moveDir.lengthSq() > 0 ? this.groundAcceleration : this.groundFriction;
+          this.velocity.x += (moveDir.x * maxSpeed - this.velocity.x) * Math.min(1, accel * dt);
+          this.velocity.z += (moveDir.z * maxSpeed - this.velocity.z) * Math.min(1, accel * dt);
+        } else {
+          this.velocity.x += moveDir.x * maxSpeed * this.airControl * dt;
+          this.velocity.z += moveDir.z * maxSpeed * this.airControl * dt;
+        }
+
+        this.velocity.y -= this.gravity * dt;
+        this.position.addScaledVector(this.velocity, dt);
+
+        const maxCoord = this.terrain.size * 0.48;
+        this.position.x = Math.max(-maxCoord, Math.min(maxCoord, this.position.x));
+        this.position.z = Math.max(-maxCoord, Math.min(maxCoord, this.position.z));
+
+        const groundHeight = this.terrain.getHeightAt(this.position.x, this.position.z);
+        if (this.position.y <= groundHeight) {
+          this.position.y = groundHeight;
+          this.velocity.y = 0;
+          this.isGrounded = true;
+        } else {
+          this.isGrounded = false;
+        }
+
+        const hSpeed = Math.hypot(this.velocity.x, this.velocity.z);
+        const bobPhase = performance.now() * 0.008;
+        const headBob = this.isGrounded && hSpeed > 0.3
+          ? Math.sin(bobPhase) * 0.035 * (hSpeed / this.sprintSpeed)
+          : 0;
+
+        if (this.toolGroup) {
+          this.toolGroup.position.y = -0.26 + Math.cos(bobPhase) * 0.01 * (hSpeed / this.sprintSpeed);
+          this.toolGroup.position.x = 0.28 + Math.sin(bobPhase * 0.5) * 0.01 * (hSpeed / this.sprintSpeed);
+        }
+
+        this.camera.position.set(this.position.x, this.position.y + this.currentEyeHeight + headBob, this.position.z);
+      }
+
+      getHorizontalSpeed() { return Math.hypot(this.velocity.x, this.velocity.z); }
+    }
+
+    // =========================================================================
+    // 9. ПОСАДОЧНЫЙ МОДУЛЬ, ДОБЫЧА, КРАФТ, СТРОИТЕЛЬСТВО, НАУКА И РОБОТЫ
+    // =========================================================================
+    class LunarLander {
+      constructor(scene, terrain, x = 0, z = -10) {
+        this.scene = scene;
+        this.terrain = terrain;
+        this.position = new THREE.Vector3(x, terrain.getHeightAt(x, z), z);
+        this.cargoStorage = { REGOLITH_BLOCK: 6, TI_FE_INGOT: 6, SILICON_WAFER: 6, RATION_PACK: 2 };
+        this.group = this.buildMesh();
+        this.group.position.copy(this.position);
+        this.scene.add(this.group);
+      }
+
+      buildMesh() {
+        const group = new THREE.Group();
+        const matGold = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.22, metalness: 0.94 });
+        const matHull = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35, metalness: 0.8 });
+        const matDark = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.65, metalness: 0.55 });
+
+        const stage = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.5, 1.8, 12), matGold);
+        stage.position.y = 1.9;
+        stage.castShadow = true;
+        group.add(stage);
+
+        const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.88, 0.95, 20, 1, true), matDark);
+        nozzle.position.y = 0.65;
+        group.add(nozzle);
+
+        for (let i = 0; i < 4; i++) {
+          const a = (i * Math.PI) / 2 + Math.PI / 4;
+          const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.4, 8), matDark);
+          strut.position.set(Math.cos(a) * 2.5, 1.1, Math.sin(a) * 2.5);
+          strut.rotation.z = -Math.cos(a) * 0.45;
+          strut.rotation.x = Math.sin(a) * 0.45;
+          group.add(strut);
+
+          const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 0.12, 16), matHull);
+          pad.position.set(Math.cos(a) * 3.1, 0.06, Math.sin(a) * 3.1);
+          group.add(pad);
+        }
+
+        const cabin = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 1.9, 16), matHull);
+        cabin.position.y = 3.7;
+        cabin.castShadow = true;
+        group.add(cabin);
+
+        const dish = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.38), matHull);
+        dish.rotation.x = Math.PI * 0.75;
+        dish.position.set(0.9, 4.9, -0.5);
+        group.add(dish);
+
+        const glassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        const w1 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.1), glassMat);
+        w1.position.set(-0.55, 4.0, 1.65);
+        const w2 = w1.clone();
+        w2.position.x = 0.55;
+        group.add(w1, w2);
+
+        const terminal = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 0.55), matDark);
+        terminal.position.set(0, 1.6, 2.35);
+        terminal.userData.interactable = {
+          type: 'LANDER_TERMINAL',
+          get label() { return tr('Терминал посадочного модуля (Груз / Крафт)', 'Lander terminal (Cargo / Crafting)'); }
+        };
+        group.add(terminal);
+
+        const beacon = new THREE.PointLight(0x38bdf8, 3.5, 20);
+        beacon.position.set(0, 5.1, 0);
+        group.add(beacon);
+
+        return group;
+      }
+    }
+
+    class MiningSystem {
+      constructor(scene, camera, terrain, inventory) {
+        this.scene = scene;
+        this.camera = camera;
+        this.terrain = terrain;
+        this.inventory = inventory;
+
+        this.nodes = [];
+        this.isMining = false;
+        this.currentTargetNode = null;
+        this.miningProgress = 0;
+        this.raycaster = new THREE.Raycaster();
+        this.raycaster.far = 7.5;
+
+        const beamGeo = new THREE.CylinderGeometry(0.012, 0.012, 1, 6);
+        beamGeo.rotateX(Math.PI / 2);
+        beamGeo.translate(0, 0, -0.5);
+        this.laserBeam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.9 }));
+        this.laserBeam.visible = false;
+        this.scene.add(this.laserBeam);
+
+        this.laserSpark = new THREE.PointLight(0xff5500, 5.0, 6);
+        this.laserSpark.visible = false;
+        this.scene.add(this.laserSpark);
+
+        this.spawnResourceNodes(false);
+      }
+
+      spawnResourceNodes(isMars) {
+        this.nodes.forEach((n) => this.scene.remove(n.mesh));
+        this.nodes = [];
+
+        const nodeTypes = isMars
+          ? [
+              { itemId: 'MARTIAN_REGOLITH', color: 0xb45309, yieldCount: 3, scale: 1.1 },
+              { itemId: 'HEMATITE_ORE', color: 0x475569, yieldCount: 2, scale: 0.95 },
+              { itemId: 'SUBSURFACE_ICE', color: 0xbae6fd, yieldCount: 2, scale: 0.9 }
+            ]
+          : [
+              { itemId: 'REGOLITH', color: 0x71717a, yieldCount: 3, scale: 1.1 },
+              { itemId: 'ILMENITE_ORE', color: 0x334155, yieldCount: 2, scale: 0.95 },
+              { itemId: 'ANORTHOSITE', color: 0xcbd5e1, yieldCount: 2, scale: 0.9 }
+            ];
+
+        const baseGeo = new THREE.DodecahedronGeometry(0.55, 1);
+        for (let i = 0; i < 150; i++) {
+          const type = nodeTypes[i % nodeTypes.length];
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 10 + Math.random() * 240;
+          const x = Math.cos(angle) * dist;
+          const z = Math.sin(angle) * dist;
+          const y = this.terrain.getHeightAt(x, z);
+
+          const mesh = new THREE.Mesh(
+            baseGeo,
+            new THREE.MeshStandardMaterial({ color: type.color, roughness: 0.82, metalness: 0.3 })
+          );
+          mesh.position.set(x, y + 0.18, z);
+          mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+          mesh.scale.setScalar(type.scale * (0.8 + Math.random() * 0.4));
+          mesh.castShadow = true;
+
+          const nodeData = { id: `node_${i}`, itemId: type.itemId, remainingYield: type.yieldCount, mesh };
+          mesh.userData.resourceNode = nodeData;
+          this.scene.add(mesh);
+          this.nodes.push(nodeData);
+        }
+      }
+
+      setMiningActive(active) {
+        this.isMining = active;
+        if (!active) {
+          this.miningProgress = 0;
+          this.currentTargetNode = null;
+          this.laserBeam.visible = false;
+          this.laserSpark.visible = false;
+        }
+      }
+
+      getLookAtTarget(extraObjects = []) {
+        this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+        const targets = [...this.nodes.map((n) => n.mesh), ...extraObjects];
+        const hits = this.raycaster.intersectObjects(targets, true);
+        return hits.length > 0 ? hits[0] : null;
+      }
+
+      update(dt) {
+        if (!this.isMining) return;
+        const hit = this.getLookAtTarget();
+        if (!hit || !hit.object.userData.resourceNode) {
+          this.miningProgress = 0;
+          this.currentTargetNode = null;
+          this.laserBeam.visible = false;
+          this.laserSpark.visible = false;
+          return;
+        }
+
+        const node = hit.object.userData.resourceNode;
+        if (this.currentTargetNode !== node) {
+          this.currentTargetNode = node;
+          this.miningProgress = 0;
+        }
+
+        const handPos = new THREE.Vector3(0.28, -0.24, -0.75).applyMatrix4(this.camera.matrixWorld);
+        this.laserBeam.visible = true;
+        this.laserBeam.position.copy(handPos);
+        this.laserBeam.lookAt(hit.point);
+        this.laserBeam.scale.set(1, 1, handPos.distanceTo(hit.point));
+
+        this.laserSpark.visible = true;
+        this.laserSpark.position.copy(hit.point);
+
+        this.miningProgress += dt / 1.3;
+        if (this.miningProgress >= 1.0) {
+          this.miningProgress = 0;
+          if (this.inventory.addItem(node.itemId, 1)) {
+            node.remainingYield -= 1;
+            node.mesh.scale.multiplyScalar(0.82);
+            if (node.remainingYield <= 0) {
+              this.scene.remove(node.mesh);
+              const idx = this.nodes.indexOf(node);
+              if (idx !== -1) this.nodes.splice(idx, 1);
+              this.currentTargetNode = null;
+              this.laserBeam.visible = false;
+              this.laserSpark.visible = false;
+            }
+          }
+        }
+      }
+    }
+
+    class CraftingSystem {
+      constructor(inventory) { this.inventory = inventory; }
+      getRecipes() { return CRAFTING_RECIPES; }
+      canCraft(recipeId) {
+        const r = CRAFTING_RECIPES.find((x) => x.id === recipeId);
+        return r ? Object.entries(r.inputs).every(([id, cnt]) => this.inventory.getItemCount(id) >= cnt) : false;
+      }
+      craft(recipeId) {
+        const r = CRAFTING_RECIPES.find((x) => x.id === recipeId);
+        if (!r || !this.canCraft(recipeId)) return false;
+        Object.entries(r.inputs).forEach(([id, cnt]) => this.inventory.removeItem(id, cnt));
+        this.inventory.addItem(r.outputItem, r.outputCount);
+        return true;
+      }
+    }
+
+    class PowerNetwork {
+      constructor() {
+        this.totalGenerationW = 0;
+        this.totalConsumptionW = 0;
+        this.netPowerW = 0;
+        this.totalCapacityWh = 0;
+        this.storedEnergyWh = 0;
+        this.isPowered = false;
+      }
+
+      update(buildings, sunDir, dt, solarMultiplier = 1.0) {
+        let genW = 0, consW = 0, capWh = 0, storedWh = 0;
+        for (const b of buildings) {
+          if (b.config.powerGenerationMaxW > 0) {
+            if (b.config.isConstantPower) {
+              genW += b.config.powerGenerationMaxW;
+            } else {
+              const sunFactor = Math.max(0, sunDir.y);
+              const eff = sunFactor > 0 ? Math.min(1.0, Math.pow(sunFactor, 0.45)) : 0;
+              genW += b.config.powerGenerationMaxW * eff * solarMultiplier;
+            }
+          }
+          if (b.config.powerConsumptionW > 0) consW += b.config.powerConsumptionW;
+          if (b.config.energyCapacityWh > 0) {
+            capWh += b.config.energyCapacityWh;
+            storedWh += b.storedEnergyWh;
+          }
+        }
+
+        this.totalGenerationW = genW;
+        this.totalConsumptionW = consW;
+        this.netPowerW = genW - consW;
+
+        const deltaWh = (this.netPowerW * dt) / 3600;
+        if (capWh > 0) {
+          const bats = buildings.filter((b) => b.config.energyCapacityWh > 0);
+          let newStored = 0;
+          for (const bat of bats) {
+            bat.storedEnergyWh = Math.max(0, Math.min(bat.config.energyCapacityWh, bat.storedEnergyWh + deltaWh / bats.length));
+            newStored += bat.storedEnergyWh;
+          }
+          storedWh = newStored;
+        }
+
+        this.totalCapacityWh = capWh;
+        this.storedEnergyWh = storedWh;
+        this.isPowered = consW === 0 ? (genW > 0 || storedWh > 0) : (genW >= consW || storedWh > 0.5);
+        buildings.forEach((b) => b.setPoweredState(this.isPowered));
+      }
+
+      getBatteryPercentage() { return this.totalCapacityWh > 0 ? (this.storedEnergyWh / this.totalCapacityWh) * 100 : 0; }
+    }
+
+    class BuildingManager {
+      constructor(scene, terrain) {
+        this.scene = scene;
+        this.terrain = terrain;
+        this.buildings = [];
+        this.powerNetwork = new PowerNetwork();
+        this.cablesGroup = new THREE.Group();
+        this.scene.add(this.cablesGroup);
+      }
+
+      createBuildingMesh(buildingId, isGhost = false) {
+        const group = new THREE.Group();
+        const matMetal = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.32, metalness: 0.85 });
+        const matDark = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55, metalness: 0.65 });
+        const matGold = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.94 });
+        const matSolar = new THREE.MeshStandardMaterial({ color: 0x0a192f, emissive: 0x09224a, roughness: 0.12, metalness: 0.9 });
+
+        if (buildingId === 'SOLAR_PANEL') {
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 0.25, 12), matDark);
+          base.position.y = 0.125;
+          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 1.8, 12), matMetal);
+          mast.position.y = 1.0;
+          const pivot = new THREE.Group();
+          pivot.position.y = 1.95;
+          pivot.add(new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.08, 2.0), matDark), new THREE.Mesh(new THREE.BoxGeometry(3.25, 0.09, 1.85), matSolar));
+          pivot.rotation.x = 0.35;
+          group.add(base, mast, pivot);
+          group.userData.panelPivot = pivot;
+        } else if (buildingId === 'BATTERY_BANK') {
+          const base = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.2, 1.8), matDark);
+          base.position.y = 0.1;
+          group.add(base);
+          for (let ix = -0.6; ix <= 0.6; ix += 1.2) {
+            for (let iz = -0.45; iz <= 0.45; iz += 0.9) {
+              const cell = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 1.3, 16), matGold);
+              cell.position.set(ix, 0.85, iz);
+              group.add(cell);
+            }
+          }
+        } else if (buildingId === 'RTG_GENERATOR') {
+          const core = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 1.6, 16), matDark);
+          core.position.y = 0.8;
+          group.add(core);
+          for (let i = 0; i < 6; i++) {
+            const fin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 0.06), matGold);
+            fin.position.y = 0.85;
+            fin.rotation.y = (i * Math.PI) / 3;
+            group.add(fin);
+          }
+        } else if (buildingId === 'STORAGE_CRATE') {
+          const box = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.6, 1.6), matMetal);
+          box.position.y = 0.8;
+          group.add(box);
+        } else if (buildingId === 'HAB_MODULE') {
+          const hull = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 5.6, 28), matMetal);
+          hull.rotation.z = Math.PI / 2;
+          hull.position.y = 2.5;
+          const airlock = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.2, 1.6), matDark);
+          airlock.position.set(0, 1.5, 2.4);
+          const winMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+          const port = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.18, 20), winMat);
+          port.rotation.x = Math.PI / 2;
+          port.position.set(0, 1.75, 3.23);
+          group.add(hull, airlock, port);
+
+          if (!isGhost) {
+            const light = new THREE.PointLight(0x38bdf8, 3.5, 16);
+            light.position.set(0, 2.8, 3.6);
+            group.add(light);
+            group.userData.statusLight = light;
+            group.userData.windowMat = winMat;
+          }
+        }
+
+        group.traverse((c) => {
+          if (c.isMesh) {
+            if (isGhost) {
+              c.material = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.48 });
+            } else {
+              c.castShadow = true;
+              c.receiveShadow = true;
+            }
+          }
+        });
+        return group;
+      }
+
+      placeBuilding(buildingId, position, rotationY) {
+        const config = BUILDINGS_CATALOG[buildingId];
+        if (!config) return null;
+        const mesh = this.createBuildingMesh(buildingId, false);
+        mesh.position.copy(position);
+        mesh.rotation.y = rotationY;
+        this.scene.add(mesh);
+
+        const inst = {
+          id: buildingId, config, mesh, position: position.clone(), rotationY,
+          storedEnergyWh: config.energyCapacityWh ? config.energyCapacityWh * 0.25 : 0,
+          setPoweredState(state) {
+            if (this.mesh.userData.statusLight) {
+              this.mesh.userData.statusLight.intensity = state ? 3.5 : 0.2;
+              this.mesh.userData.statusLight.color.setHex(state ? 0x38bdf8 : 0xef4444);
+            }
+            if (this.mesh.userData.windowMat) {
+              this.mesh.userData.windowMat.color.setHex(state ? 0x38bdf8 : 0x7f1d1d);
+            }
+          }
+        };
+
+        mesh.traverse((c) => { if (c.isMesh) c.userData.building = inst; });
+        this.buildings.push(inst);
+        this.rebuildPowerCables();
+        return inst;
+      }
+
+      removeBuilding(inst) {
+        const idx = this.buildings.indexOf(inst);
+        if (idx === -1) return;
+        this.scene.remove(inst.mesh);
+        this.buildings.splice(idx, 1);
+        this.rebuildPowerCables();
+      }
+
+      rebuildPowerCables() {
+        while (this.cablesGroup.children.length > 0) this.cablesGroup.remove(this.cablesGroup.children[0]);
+        const cableMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.5 });
+
+        for (let i = 0; i < this.buildings.length; i++) {
+          for (let j = i + 1; j < this.buildings.length; j++) {
+            const b1 = this.buildings[i], b2 = this.buildings[j];
+            const dist = b1.position.distanceTo(b2.position);
+            if (dist <= 28.0) {
+              const pts = [];
+              const steps = Math.max(4, Math.ceil(dist / 1.5));
+              for (let s = 0; s <= steps; s++) {
+                const t = s / steps;
+                const px = THREE.MathUtils.lerp(b1.position.x, b2.position.x, t);
+                const pz = THREE.MathUtils.lerp(b1.position.z, b2.position.z, t);
+                pts.push(new THREE.Vector3(px, this.terrain.getHeightAt(px, pz) + 0.06, pz));
+              }
+              const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), steps * 2, 0.045, 6, false);
+              this.cablesGroup.add(new THREE.Mesh(tube, cableMat));
+            }
+          }
+        }
+      }
+
+      update(dt, sunDir, solarMultiplier = 1.0) {
+        for (const b of this.buildings) {
+          if (b.id === 'SOLAR_PANEL' && b.mesh.userData.panelPivot && sunDir.y > 0) {
+            b.mesh.userData.panelPivot.rotation.y = Math.atan2(sunDir.x, sunDir.z) - b.rotationY;
+          }
+        }
+        this.powerNetwork.update(this.buildings, sunDir, dt, solarMultiplier);
+      }
+
+      isPlayerInPressurizedZone(playerPos) {
+        if (!this.powerNetwork.isPowered) return false;
+        return this.buildings.some((b) => b.config.isPressurized && playerPos.distanceTo(b.position) <= b.config.footprintRadius + 2.5);
+      }
+    }
+
+    class PlacementSystem {
+      constructor(scene, camera, terrain, buildingManager, inventory) {
+        this.scene = scene;
+        this.camera = camera;
+        this.terrain = terrain;
+        this.buildingManager = buildingManager;
+        this.inventory = inventory;
+
+        this.isActive = false;
+        this.selectedBuildingId = null;
+        this.ghostMesh = null;
+        this.rotationY = 0;
+        this.canPlace = false;
+        this.invalidReason = '';
+        this.currentPlacementPos = new THREE.Vector3();
+      }
+
+      startPlacing(buildingId) {
+        this.cancel();
+        this.isActive = true;
+        this.selectedBuildingId = buildingId;
+        this.rotationY = 0;
+        this.ghostMesh = this.buildingManager.createBuildingMesh(buildingId, true);
+        this.scene.add(this.ghostMesh);
+      }
+
+      cancel() {
+        this.isActive = false;
+        this.selectedBuildingId = null;
+        if (this.ghostMesh) {
+          this.scene.remove(this.ghostMesh);
+          this.ghostMesh = null;
+        }
+      }
+
+      rotate() {
+        if (this.isActive) this.rotationY = (this.rotationY + Math.PI / 4) % (Math.PI * 2);
+      }
+
+      hasRequiredResources(costMap) {
+        return Object.entries(costMap).every(([id, cnt]) => this.inventory.getItemCount(id) >= cnt);
+      }
+
+      update(playerPos, landerPos) {
+        if (!this.isActive || !this.ghostMesh) return;
+        const forward = new THREE.Vector3();
+        this.camera.getWorldDirection(forward);
+        const dist = Math.max(4.5, Math.min(16.0, 8.0 / Math.max(0.25, -forward.y + 0.5)));
+        const tx = playerPos.x + forward.x * dist;
+        const tz = playerPos.z + forward.z * dist;
+        this.currentPlacementPos.set(tx, this.terrain.getHeightAt(tx, tz), tz);
+
+        this.ghostMesh.position.copy(this.currentPlacementPos);
+        this.ghostMesh.rotation.y = this.rotationY;
+
+        const cfg = BUILDINGS_CATALOG[this.selectedBuildingId];
+        this.canPlace = true;
+        this.invalidReason = '';
+
+        if (!this.hasRequiredResources(cfg.cost)) {
+          this.canPlace = false;
+          this.invalidReason = tr('Недостаточно материалов', 'Not enough materials');
+        } else if (playerPos.distanceTo(this.currentPlacementPos) < cfg.footprintRadius + 1.1) {
+          this.canPlace = false;
+          this.invalidReason = tr('Слишком близко к астронавту', 'Too close to the astronaut');
+        } else if (landerPos.distanceTo(this.currentPlacementPos) < cfg.footprintRadius + 4.2) {
+          this.canPlace = false;
+          this.invalidReason = tr('Зона посадочного модуля', 'Lander zone');
+        } else {
+          for (const b of this.buildingManager.buildings) {
+            if (b.position.distanceTo(this.currentPlacementPos) < cfg.footprintRadius + b.config.footprintRadius + 0.4) {
+              this.canPlace = false;
+              this.invalidReason = tr('Пересечение с другим модулем', 'Overlaps another module');
+              break;
+            }
+          }
+        }
+
+        const col = this.canPlace ? 0x22c55e : 0xef4444;
+        this.ghostMesh.traverse((c) => { if (c.isMesh) c.material.color.setHex(col); });
+      }
+
+      confirmPlacement() {
+        if (!this.isActive || !this.canPlace) return false;
+        const cfg = BUILDINGS_CATALOG[this.selectedBuildingId];
+        Object.entries(cfg.cost).forEach(([id, cnt]) => this.inventory.removeItem(id, cnt));
+        this.buildingManager.placeBuilding(this.selectedBuildingId, this.currentPlacementPos, this.rotationY);
+        if (!this.hasRequiredResources(cfg.cost)) this.cancel();
+        return true;
+      }
+    }
+
+    class ResearchManager {
+      constructor(inventory) {
+        this.inventory = inventory;
+        this.unlockedTechs = new Set();
+        this.activeResearchId = null;
+        this.progressSec = 0;
+      }
+      isUnlocked(id) { return this.unlockedTechs.has(id); }
+      canStartResearch(id) {
+        if (this.isUnlocked(id) || this.activeResearchId) return false;
+        const t = TECHNOLOGIES_CATALOG[id];
+        return t && Object.entries(t.cost).every(([itemId, cnt]) => this.inventory.getItemCount(itemId) >= cnt);
+      }
+      startResearch(id) {
+        if (!this.canStartResearch(id)) return false;
+        const t = TECHNOLOGIES_CATALOG[id];
+        Object.entries(t.cost).forEach(([itemId, cnt]) => this.inventory.removeItem(itemId, cnt));
+        this.activeResearchId = id;
+        this.progressSec = 0;
+        return true;
+      }
+      update(dt) {
+        if (!this.activeResearchId) return null;
+        const t = TECHNOLOGIES_CATALOG[this.activeResearchId];
+        this.progressSec += dt;
+        if (this.progressSec >= t.researchTimeSec) {
+          const done = this.activeResearchId;
+          this.unlockedTechs.add(done);
+          this.activeResearchId = null;
+          this.progressSec = 0;
+          return done;
+        }
+        return null;
+      }
+      getProgressPercent() {
+        if (!this.activeResearchId) return 0;
+        return Math.min(100, (this.progressSec / TECHNOLOGIES_CATALOG[this.activeResearchId].researchTimeSec) * 100);
+      }
+    }
+
+    class RobotAI {
+      constructor(scene, terrain, miningSystem, lander) {
+        this.scene = scene;
+        this.terrain = terrain;
+        this.miningSystem = miningSystem;
+        this.lander = lander;
+        this.robots = [];
+        this.priorityFilter = 'ALL';
+      }
+
+      spawnRobot(x, z) {
+        const y = this.terrain.getHeightAt(x, z);
+        const group = new THREE.Group();
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(1.1, 0.35, 1.5),
+          new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.4, metalness: 0.65 })
+        );
+        body.position.y = 0.42;
+        body.castShadow = true;
+        group.add(body);
+
+        const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0x22c55e }));
+        beacon.position.set(0, 0.85, 0.4);
+        group.add(beacon);
+
+        const wheelGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12);
+        wheelGeo.rotateZ(Math.PI / 2);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+        for (const sx of [-0.62, 0.62]) {
+          for (const sz of [-0.52, 0, 0.52]) {
+            const w = new THREE.Mesh(wheelGeo, wheelMat);
+            w.position.set(sx, 0.22, sz);
+            group.add(w);
+          }
+        }
+
+        group.position.set(x, y, z);
+        this.scene.add(group);
+
+        const robot = {
+          mesh: group, position: new THREE.Vector3(x, y, z), speed: 3.0, state: 'SEARCHING',
+          targetNode: null, miningTimer: 0, cargo: {}, cargoCount: 0, maxCargo: 8
+        };
+        this.robots.push(robot);
+        return robot;
+      }
+
+      findNearestNode(pos) {
+        let best = null, minD = Infinity;
+        for (const n of this.miningSystem.nodes) {
+          if (n.remainingYield <= 0) continue;
+          if (this.priorityFilter === 'REGOLITH' && !n.itemId.includes('REGOLITH')) continue;
+          if (this.priorityFilter === 'ORES' && n.itemId.includes('REGOLITH')) continue;
+          const d = pos.distanceTo(n.mesh.position);
+          if (d < minD) { minD = d; best = n; }
+        }
+        return best;
+      }
+
+      update(dt) {
+        for (const r of this.robots) {
+          if (r.state === 'SEARCHING') {
+            if (r.cargoCount >= r.maxCargo) { r.state = 'RETURNING'; continue; }
+            const node = this.findNearestNode(r.position);
+            if (node) { r.targetNode = node; r.state = 'MOVING'; }
+          } else if (r.state === 'MOVING') {
+            if (!r.targetNode || r.targetNode.remainingYield <= 0) { r.state = 'SEARCHING'; continue; }
+            const tp = r.targetNode.mesh.position;
+            if (Math.hypot(tp.x - r.position.x, tp.z - r.position.z) <= 2.2) {
+              r.state = 'MINING';
+            } else {
+              this.moveTowards(r, tp, dt);
+            }
+          } else if (r.state === 'MINING') {
+            if (!r.targetNode || r.targetNode.remainingYield <= 0) { r.state = 'SEARCHING'; continue; }
+            r.miningTimer += dt;
+            if (r.miningTimer >= 2.0) {
+              r.miningTimer = 0;
+              const id = r.targetNode.itemId;
+              r.cargo[id] = (r.cargo[id] || 0) + 1;
+              r.cargoCount++;
+              r.targetNode.remainingYield--;
+              r.targetNode.mesh.scale.multiplyScalar(0.82);
+              if (r.targetNode.remainingYield <= 0) {
+                this.scene.remove(r.targetNode.mesh);
+                const idx = this.miningSystem.nodes.indexOf(r.targetNode);
+                if (idx !== -1) this.miningSystem.nodes.splice(idx, 1);
+                r.targetNode = null;
+              }
+              if (r.cargoCount >= r.maxCargo) r.state = 'RETURNING';
+              else if (!r.targetNode) r.state = 'SEARCHING';
+            }
+          } else if (r.state === 'RETURNING') {
+            if (Math.hypot(this.lander.position.x - r.position.x, this.lander.position.z - r.position.z) <= 4.2) {
+              for (const [id, cnt] of Object.entries(r.cargo)) {
+                this.lander.cargoStorage[id] = (this.lander.cargoStorage[id] || 0) + cnt;
+              }
+              r.cargo = {}; r.cargoCount = 0; r.state = 'SEARCHING';
+            } else {
+              this.moveTowards(r, this.lander.position, dt);
+            }
+          }
+        }
+      }
+
+      moveTowards(r, target, dt) {
+        const dx = target.x - r.position.x, dz = target.z - r.position.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 0.01) return;
+        r.position.x += (dx / len) * r.speed * dt;
+        r.position.z += (dz / len) * r.speed * dt;
+        r.position.y = this.terrain.getHeightAt(r.position.x, r.position.z);
+        r.mesh.position.copy(r.position);
+        r.mesh.rotation.y = Math.atan2(dx / len, dz / len);
+      }
+
+      clearAllRobots() {
+        this.robots.forEach((r) => this.scene.remove(r.mesh));
+        this.robots = [];
+      }
+    }
+
+    class Spaceship {
+      constructor() {
+        this.dryMassKg = 18000;
+        this.maxFuelKg = 42000;
+        this.fuelKg = 42000;
+        this.ispSeconds = 345;
+      }
+      getAvailableDeltaVKms() {
+        const m0 = this.dryMassKg + this.fuelKg;
+        return (this.ispSeconds * PHYSICS_CONSTANTS.EARTH_GRAVITY * Math.log(m0 / this.dryMassKg)) / 1000.0;
+      }
+      executeTransferBurn(reqDvKms) {
+        const avail = this.getAvailableDeltaVKms();
+        if (avail < reqDvKms) return { success: false, reason: tr(`Мало топлива: нужно Δv ${reqDvKms} км/с, есть ${avail.toFixed(1)} км/с`, `Low fuel: Δv ${reqDvKms} km/s required, ${avail.toFixed(1)} km/s available`) };
+        const ve = this.ispSeconds * PHYSICS_CONSTANTS.EARTH_GRAVITY;
+        const mAfter = (this.dryMassKg + this.fuelKg) / Math.exp((reqDvKms * 1000) / ve);
+        this.fuelKg = Math.max(0, mAfter - this.dryMassKg);
+        return { success: true };
+      }
+      refuel(kg = 35000) { this.fuelKg = Math.min(this.maxFuelKg, this.fuelKg + kg); }
+    }
+
+    // =========================================================================
+    // 10. СЕНСОРНОЕ УПРАВЛЕНИЕ ДЛЯ ТЕЛЕФОНОВ
+    // =========================================================================
+    class MobileControls {
+      constructor(game) {
+        this.game = game;
+        this.container = document.getElementById('mobile-controls');
+        this.joyZone = document.getElementById('joystick-zone');
+        this.joyKnob = document.getElementById('joystick-knob');
+        this.lookZone = document.getElementById('touch-look-zone');
+
+        this.isMobileDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 900;
+        this.joyTouchId = null;
+        this.lookTouchId = null;
+        this.lastLookPos = { x: 0, y: 0 };
+
+        this.bindTouchEvents();
+      }
+
+      setVisible(visible) {
+        if (visible && this.isMobileDevice) {
+          this.container.classList.remove('hidden');
+        } else {
+          this.container.classList.add('hidden');
+        }
+      }
+
+      bindTouchEvents() {
+        this.joyZone.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          const t = e.changedTouches[0];
+          this.joyTouchId = t.identifier;
+          this.updateJoystick(t.clientX, t.clientY);
+        }, { passive: false });
+
+        this.joyZone.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.joyTouchId) this.updateJoystick(t.clientX, t.clientY);
+          }
+        }, { passive: false });
+
+        const resetJoy = (e) => {
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.joyTouchId) {
+              this.joyTouchId = null;
+              this.joyKnob.style.transform = 'translate(0px, 0px)';
+              this.game.player.touchMove = { x: 0, y: 0 };
+            }
+          }
+        };
+        this.joyZone.addEventListener('touchend', resetJoy);
+        this.joyZone.addEventListener('touchcancel', resetJoy);
+
+        this.lookZone.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          const t = e.changedTouches[0];
+          this.lookTouchId = t.identifier;
+          this.lastLookPos = { x: t.clientX, y: t.clientY };
+        }, { passive: false });
+
+        this.lookZone.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.lookTouchId) {
+              const dx = t.clientX - this.lastLookPos.x;
+              const dy = t.clientY - this.lastLookPos.y;
+              this.lastLookPos = { x: t.clientX, y: t.clientY };
+              this.game.player.rotateCamera(-dx * 0.0055, -dy * 0.0055);
+            }
+          }
+        }, { passive: false });
+
+        const resetLook = (e) => {
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.lookTouchId) this.lookTouchId = null;
+          }
+        };
+        this.lookZone.addEventListener('touchend', resetLook);
+        this.lookZone.addEventListener('touchcancel', resetLook);
+
+        const actionBtn = document.getElementById('m-action');
+        actionBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.game.soundManager.init();
+          actionBtn.classList.add('active');
+          if (this.game.placementSystem.isActive) {
+            if (this.game.placementSystem.confirmPlacement()) this.game.soundManager.playBuildSuccess();
+          } else {
+            this.game.miningSystem.setMiningActive(true);
+          }
+        }, { passive: false });
+
+        const stopAction = (e) => {
+          e.preventDefault();
+          actionBtn.classList.remove('active');
+          this.game.miningSystem.setMiningActive(false);
+        };
+        actionBtn.addEventListener('touchend', stopAction);
+        actionBtn.addEventListener('touchcancel', stopAction);
+
+        document.getElementById('m-jump').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.game.player.jump();
+        }, { passive: false });
+
+        document.getElementById('m-light').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          const on = this.game.player.toggleFlashlight();
+          this.game.showToast(`${tr('Налобный фонарь', 'Headlamp')}: ${on ? tr('ВКЛ', 'ON') : tr('ВЫКЛ', 'OFF')}`);
+        }, { passive: false });
+
+        document.getElementById('m-interact').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          const hit = this.game.miningSystem.getLookAtTarget([this.game.lander.group]);
+          if (hit && hit.object.userData.interactable?.type === 'LANDER_TERMINAL') {
+            this.game.inventoryUI.open(true);
+          } else {
+            this.game.showToast(tr('Наведите прицел на терминал посадочного модуля', 'Aim at the lander terminal'), true);
+          }
+        }, { passive: false });
+
+        document.getElementById('m-rotate').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (this.game.placementSystem.isActive) this.game.placementSystem.rotate();
+        }, { passive: false });
+
+        document.getElementById('m-cancel').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (this.game.placementSystem.isActive) {
+            this.game.placementSystem.cancel();
+            return;
+          }
+          const hit = this.game.miningSystem.getLookAtTarget(this.game.buildingManager.buildings.map((b) => b.mesh));
+          if (hit && hit.object.userData.building) {
+            const b = hit.object.userData.building;
+            Object.entries(b.config.cost).forEach(([id, c]) => this.game.inventory.addItem(id, Math.max(1, Math.floor(c * 0.8))));
+            this.game.buildingManager.removeBuilding(b);
+            this.game.soundManager.playBuildSuccess();
+            this.game.showToast(tr('Модуль демонтирован', 'Module dismantled'));
+          }
+        }, { passive: false });
+      }
+
+      updateJoystick(clientX, clientY) {
+        const rect = this.joyZone.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const maxR = rect.width * 0.36;
+
+        let dx = clientX - cx;
+        let dy = clientY - cy;
+        const dist = Math.hypot(dx, dy);
+        if (dist > maxR) {
+          dx = (dx / dist) * maxR;
+          dy = (dy / dist) * maxR;
+        }
+        this.joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+        this.game.player.touchMove = { x: dx / maxR, y: dy / maxR };
+      }
+    }
+
+    // =========================================================================
+    // 11. МОДАЛЬНЫЕ ОКНА И ОБУЧЕНИЕ
+    // =========================================================================
+    class TutorialUI {
+      constructor(onComplete) {
+        this.onComplete = onComplete;
+        this.currentStep = 0;
+        this.lang = 'ru';
+        this.overlay = document.getElementById('tutorial-overlay');
+
+        document.getElementById('tut-next-btn').addEventListener('click', () => {
+          this.currentStep++;
+          const steps = TUTORIAL_STEPS[this.lang];
+          if (this.currentStep >= steps.length) {
+            this.close();
+          } else {
+            this.render();
+          }
+        });
+      }
+
+      open(lang = 'ru') {
+        this.lang = lang;
+        this.currentStep = 0;
+        this.render();
+        this.overlay.classList.remove('hidden');
+        if (document.pointerLockElement) document.exitPointerLock();
+      }
+
+      close() {
+        this.overlay.classList.add('hidden');
+        if (this.onComplete) this.onComplete();
+      }
+
+      setLanguage(lang) {
+        this.lang = lang;
+        if (!this.overlay.classList.contains('hidden')) this.render();
+      }
+
+      render() {
+        const steps = TUTORIAL_STEPS[this.lang];
+        const step = steps[this.currentStep];
+        document.getElementById('tut-step-badge').textContent = this.lang === 'ru' ? `ШАГ ${this.currentStep + 1} ИЗ ${steps.length}` : `STEP ${this.currentStep + 1} OF ${steps.length}`;
+        document.getElementById('tut-title').textContent = step.title;
+        document.getElementById('tut-desc').textContent = step.desc;
+
+        for (let i = 0; i < 4; i++) {
+          const dot = document.getElementById(`dot-${i}`);
+          if (dot) dot.className = i === this.currentStep ? 'dot active' : 'dot';
+        }
+        document.getElementById('tut-next-btn').textContent = this.currentStep === steps.length - 1 ? (this.lang === 'ru' ? 'НАЧАТЬ ИГРУ' : 'START GAME') : (this.lang === 'ru' ? 'ДАЛЕЕ' : 'NEXT');
+      }
+    }
+
+    class InventoryUI {
+      constructor(inventory, craftingSystem, lander, onClose) {
+        this.inventory = inventory;
+        this.craftingSystem = craftingSystem;
+        this.lander = lander;
+        this.onClose = onClose;
+        this.isOpen = false;
+        this.showLanderCargo = false;
+
+        this.modal = document.createElement('div');
+        this.modal.className = 'modal-overlay hidden';
+        this.modal.innerHTML = `
+          <div class="modal-window">
+            <div class="modal-header">
+              <div><div class="panel-title" data-i18n="inv_sub">СНАБЖЕНИЕ И СИНТЕЗ</div><h2 data-i18n="inv_title">РЮКЗАК И 3D-ПРИНТЕР</h2></div>
+              <button id="close-inv-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+            </div>
+            <div class="inv-layout">
+              <div>
+                <div class="col-header"><span data-i18n="inv_pack">РЮКЗАК СКАФАНДРА</span><span id="inv-mass-label" class="val-ok">0 / 120 кг</span></div>
+                <div id="player-items-list" class="items-list"></div>
+              </div>
+              <div>
+                <div id="lander-cargo-sec" class="hidden" style="margin-bottom: 14px;">
+                  <div class="col-header"><span data-i18n="inv_cargo">ГРУЗОВОЙ ОТСЕК МОДУЛЯ (Нажмите, чтобы взять)</span></div>
+                  <div id="lander-items-list" class="items-list"></div>
+                </div>
+                <div class="col-header"><span data-i18n="inv_craft">3D-ПРИНТЕР (КРАФТ)</span></div>
+                <div id="crafting-recipes-list" class="items-list"></div>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(this.modal);
+        document.getElementById('close-inv-btn').addEventListener('click', () => this.close());
+        this.inventory.onChange(() => { if (this.isOpen) this.render(); });
+      }
+
+      open(withCargo = false) {
+        this.isOpen = true;
+        this.showLanderCargo = withCargo;
+        this.render();
+        this.modal.classList.remove('hidden');
+        if (document.pointerLockElement) document.exitPointerLock();
+      }
+
+      close() {
+        this.isOpen = false;
+        this.modal.classList.add('hidden');
+        if (this.onClose) this.onClose();
+      }
+
+      render() {
+        const mass = this.inventory.getTotalMassKg();
+        document.getElementById('inv-mass-label').textContent = `${mass.toFixed(1)} / ${this.inventory.maxMassKg} ${tr('кг', 'kg')}`;
+
+        const pList = document.getElementById('player-items-list');
+        pList.innerHTML = '';
+        const entries = Object.entries(this.inventory.items);
+        if (entries.length === 0) {
+          pList.innerHTML = `<div class="empty-msg">${tr('Рюкзак пуст. Добудьте породу лазером или возьмите материалы из модуля [E].', 'Backpack is empty. Mine rock with the laser or take materials from the module [E].')}</div>`;
+        } else {
+          entries.forEach(([id, cnt]) => {
+            const def = ITEMS_CATALOG[id];
+            if (!def) return;
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.innerHTML = `<div><strong>${def.name}</strong> <span class="item-cat">[${def.category}]</span><div class="item-sub">${tr('Масса', 'Mass')}: ${(def.massKg * cnt).toFixed(1)} ${tr('кг', 'kg')}</div></div><div class="item-count">x${cnt}</div>`;
+            pList.appendChild(row);
+          });
+        }
+
+        const cSec = document.getElementById('lander-cargo-sec');
+        const cList = document.getElementById('lander-items-list');
+        if (this.showLanderCargo) {
+          cSec.classList.remove('hidden');
+          cList.innerHTML = '';
+          const cEntries = Object.entries(this.lander.cargoStorage).filter(([, c]) => c > 0);
+          if (cEntries.length === 0) {
+            cList.innerHTML = `<div class="empty-msg">${tr('Грузовой отсек пуст.', 'Cargo bay is empty.')}</div>`;
+          } else {
+            cEntries.forEach(([id, cnt]) => {
+              const def = ITEMS_CATALOG[id];
+              const row = document.createElement('div');
+              row.className = 'item-row clickable';
+              row.innerHTML = `<div><strong>${def.name}</strong><div class="item-sub">${tr('Нажмите, чтобы забрать', 'Click to take')}</div></div><div class="item-count">x${cnt}</div>`;
+              row.addEventListener('click', () => {
+                if (this.inventory.addItem(id, 1)) {
+                  this.lander.cargoStorage[id] -= 1;
+                  this.render();
+                }
+              });
+              cList.appendChild(row);
+            });
+          }
+        } else {
+          cSec.classList.add('hidden');
+        }
+
+        const rList = document.getElementById('crafting-recipes-list');
+        rList.innerHTML = '';
+        this.craftingSystem.getRecipes().forEach((rec) => {
+          const outDef = ITEMS_CATALOG[rec.outputItem];
+          const can = this.craftingSystem.canCraft(rec.id);
+          const reqStr = Object.entries(rec.inputs).map(([id, c]) => `${ITEMS_CATALOG[id]?.name || id} x${c}`).join(' + ');
+          const row = document.createElement('div');
+          row.className = 'item-row';
+          row.innerHTML = `<div><strong>${outDef.name} (x${rec.outputCount})</strong><div class="item-sub">${reqStr}</div></div><button class="primary-btn" style="padding: 6px 12px; font-size: 11px;" ${can ? '' : 'disabled'}>${tr('СИНТЕЗ', 'SYNTHESIZE')}</button>`;
+          row.querySelector('button').addEventListener('click', () => {
+            if (this.craftingSystem.craft(rec.id)) this.render();
+          });
+          rList.appendChild(row);
+        });
+      }
+    }
+
+    class BuildingUI {
+      constructor(placementSystem, inventory, researchManager, onClose) {
+        this.placementSystem = placementSystem;
+        this.inventory = inventory;
+        this.researchManager = researchManager;
+        this.onClose = onClose;
+        this.isOpen = false;
+
+        this.modal = document.createElement('div');
+        this.modal.className = 'modal-overlay hidden';
+        this.modal.innerHTML = `
+          <div class="modal-window">
+            <div class="modal-header">
+              <div><div class="panel-title" data-i18n="build_sub">ИНЖЕНЕРНЫЙ ТЕРМИНАЛ</div><h2 data-i18n="build_title">СТРОИТЕЛЬСТВО БАЗЫ</h2></div>
+              <button id="close-build-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+            </div>
+            <div id="buildings-list" class="buildings-grid"></div>
+          </div>
+        `;
+        document.body.appendChild(this.modal);
+
+        this.banner = document.createElement('div');
+        this.banner.className = 'placement-banner hidden';
+        document.body.appendChild(this.banner);
+
+        document.getElementById('close-build-btn').addEventListener('click', () => this.close());
+      }
+
+      open() {
+        this.isOpen = true;
+        this.renderList();
+        this.modal.classList.remove('hidden');
+        if (document.pointerLockElement) document.exitPointerLock();
+      }
+
+      close() {
+        this.isOpen = false;
+        this.modal.classList.add('hidden');
+        if (this.onClose) this.onClose();
+      }
+
+      renderList() {
+        const list = document.getElementById('buildings-list');
+        list.innerHTML = '';
+        Object.values(BUILDINGS_CATALOG).forEach((b) => {
+          const techLocked = b.requiresTech && !this.researchManager.isUnlocked(b.requiresTech);
+          const canAfford = !techLocked && this.placementSystem.hasRequiredResources(b.cost);
+
+          const costHtml = Object.entries(b.cost).map(([id, req]) => {
+            const have = this.inventory.getItemCount(id);
+            return `<div class="${have >= req ? 'val-ok' : 'val-err'}">${ITEMS_CATALOG[id]?.name || id}: ${have}/${req}</div>`;
+          }).join('');
+
+          const card = document.createElement('div');
+          card.className = `building-card ${canAfford ? '' : 'locked'}`;
+          card.innerHTML = `
+            <div>
+              <div class="b-cat">${b.category}</div>
+              <div class="b-title">${b.name}</div>
+              <div class="b-desc">${b.description}</div>
+              <div class="b-specs">
+                ${b.powerGenerationMaxW ? `<span>${tr('Генерация', 'Generation')}: +${(b.powerGenerationMaxW / 1000).toFixed(1)} ${tr('кВт', 'kW')}</span>` : ''}
+                ${b.powerConsumptionW ? `<span>${tr('Нагрузка', 'Load')}: -${b.powerConsumptionW} ${tr('Вт', 'W')}</span>` : ''}
+                ${b.energyCapacityWh ? `<span>${tr('Ёмкость', 'Capacity')}: ${(b.energyCapacityWh / 1000).toFixed(0)} ${tr('кВт·ч', 'kWh')}</span>` : ''}
+              </div>
+              <div class="b-cost"><div class="cost-title">${tr('МАТЕРИАЛЫ:', 'MATERIALS:')}</div>${costHtml}</div>
+            </div>
+            <button class="primary-btn" ${canAfford ? '' : 'disabled'}>
+              ${techLocked ? tr('ТРЕБУЕТСЯ НАУКА', 'RESEARCH REQUIRED') : canAfford ? tr('ВЫБРАТЬ ЧЕРТЁЖ', 'SELECT BLUEPRINT') : tr('МАЛО РЕСУРСОВ', 'NOT ENOUGH RESOURCES')}
+            </button>
+          `;
+          card.querySelector('button').addEventListener('click', () => {
+            this.placementSystem.startPlacing(b.id);
+            this.close();
+          });
+          list.appendChild(card);
+        });
+      }
+
+      updateBanner() {
+        if (!this.placementSystem.isActive) {
+          this.banner.classList.add('hidden');
+          return;
+        }
+        this.banner.classList.remove('hidden');
+        const cfg = BUILDINGS_CATALOG[this.placementSystem.selectedBuildingId];
+        const status = this.placementSystem.canPlace
+          ? `<span class="val-ok">${tr('Готово к установке (ЛКМ / Кнопка СТРОЙ)', 'Ready to place (LMB / BUILD button)')}</span>`
+          : `<span class="val-err">${this.placementSystem.invalidReason}</span>`;
+        this.banner.innerHTML = `<div><strong>${cfg.name}</strong></div><div style="margin-top:3px;">${status}</div>`;
+      }
+    }
+
+    class MapUI {
+      constructor(solarSystem, onTravel, onClose) {
+        this.solarSystem = solarSystem;
+        this.onTravel = onTravel;
+        this.onClose = onClose;
+        this.isOpen = false;
+        this.selectedBodyKey = 'MARS';
+        this.currentLocationKey = 'MOON';
+        this.camYaw = 0.6;
+        this.camPitch = 0.65;
+        this.camDistance = 42;
+        this.isDragging = false;
+        this.prevMouse = { x: 0, y: 0 };
+        this.planetMeshes = {};
+
+        this.modal = document.createElement('div');
+        this.modal.className = 'modal-overlay hidden';
+        this.modal.style.zIndex = '95';
+        this.modal.innerHTML = `
+          <div class="modal-window" style="max-width: 1100px; height: 84vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+              <div><div class="panel-title" data-i18n="map_sub">АСТРОНАВИГАЦИЯ // КЕПЛЕР-3D</div><h2 data-i18n="map_title">СОЛНЕЧНАЯ СИСТЕМА</h2></div>
+              <button id="close-map-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; flex: 1; min-height: 0;">
+              <div style="position: relative; border: 1px solid rgba(56, 189, 248, 0.3); background: #000; min-height: 220px;">
+                <canvas id="solar-map-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                <div id="map-planet-pills" style="position: absolute; top: 6px; left: 6px; display: flex; flex-wrap: wrap; gap: 4px;"></div>
+              </div>
+              <div style="background: rgba(2, 6, 23, 0.78); border: 1px solid rgba(56, 189, 248, 0.25); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; justify-content: space-between;">
+                <div id="planet-details-content"></div>
+                <div id="planet-travel-actions" style="margin-top: 12px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 10px;"></div>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(this.modal);
+        document.getElementById('close-map-btn').addEventListener('click', () => this.close());
+        this.init3DMap();
+      }
+
+      init3DMap() {
+        const pills = document.getElementById('map-planet-pills');
+        Object.keys(CELESTIAL_BODIES).forEach((key) => {
+          const btn = document.createElement('button');
+          btn.textContent = CELESTIAL_BODIES[key].name;
+          btn.dataset.bodyKey = key;
+          btn.style.cssText = 'background: rgba(15,23,42,0.9); border: 1px solid rgba(56,189,248,0.4); color: #e0f2fe; padding: 3px 6px; font-size: 10px; font-family: monospace; cursor: pointer;';
+          btn.addEventListener('click', () => { this.selectedBodyKey = key; this.renderInspector(); });
+          pills.appendChild(btn);
+        });
+
+        this.mapCanvas = document.getElementById('solar-map-canvas');
+        this.mapRenderer = new THREE.WebGLRenderer({ canvas: this.mapCanvas, antialias: true });
+        this.mapScene = new THREE.Scene();
+        this.mapScene.background = new THREE.Color(0x02040a);
+        this.mapCamera = new THREE.PerspectiveCamera(50, 1.5, 0.1, 1000);
+
+        this.mapScene.add(new THREE.PointLight(0xffffff, 2.5, 500), new THREE.AmbientLight(0x334155, 0.9));
+        this.scaleAU = (au) => Math.pow(au, 0.68) * 14.0;
+
+        for (const [key, body] of Object.entries(CELESTIAL_BODIES)) {
+          const r = key === 'SUN' ? 1.5 : (key === 'JUPITER' || key === 'SATURN') ? 0.75 : key === 'MOON' ? 0.22 : 0.45;
+          const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(r, 20, 20),
+            key === 'SUN' ? new THREE.MeshBasicMaterial({ color: body.color }) : new THREE.MeshStandardMaterial({ color: body.color, roughness: 0.6 })
+          );
+          this.mapScene.add(mesh);
+          this.planetMeshes[key] = mesh;
+
+          if (key === 'SATURN') {
+            const ring = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.55, 32), new THREE.MeshBasicMaterial({ color: 0xfde68a, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+            ring.rotation.x = Math.PI / 2;
+            mesh.add(ring);
+          }
+
+          if (!body.parentBody && body.semiMajorAxisAU > 0) {
+            const pts = [];
+            for (let s = 0; s <= 96; s++) {
+              const p = this.solarSystem.computeOrbitalPosition(body, (s / 96) * body.orbitalPeriodDays);
+              const d = p.length();
+              if (d > 0) p.normalize().multiplyScalar(this.scaleAU(d));
+              pts.push(p);
+            }
+            this.mapScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: key === 'MARS' || key === 'EARTH' ? 0x38bdf8 : 0x334155 })));
+          }
+        }
+
+        const startDrag = (x, y) => { this.isDragging = true; this.prevMouse = { x, y }; };
+        const moveDrag = (x, y) => {
+          if (!this.isOpen || !this.isDragging) return;
+          this.camYaw -= (x - this.prevMouse.x) * 0.008;
+          this.camPitch = Math.max(0.1, Math.min(1.45, this.camPitch + (y - this.prevMouse.y) * 0.008));
+          this.prevMouse = { x, y };
+        };
+
+        this.mapCanvas.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+        window.addEventListener('mouseup', () => { this.isDragging = false; });
+        window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+
+        this.mapCanvas.addEventListener('touchstart', (e) => { startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+        this.mapCanvas.addEventListener('touchmove', (e) => { moveDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+        this.mapCanvas.addEventListener('touchend', () => { this.isDragging = false; });
+
+        this.mapCanvas.addEventListener('wheel', (e) => {
+          if (!this.isOpen) return;
+          e.preventDefault();
+          this.camDistance = Math.max(8, Math.min(130, this.camDistance + e.deltaY * 0.03));
+        });
+      }
+
+      refreshLabels() {
+        this.modal.querySelectorAll('[data-body-key]').forEach((b) => { b.textContent = CELESTIAL_BODIES[b.dataset.bodyKey].name; });
+        this.renderInspector();
+      }
+
+      open() {
+        this.isOpen = true;
+        this.modal.classList.remove('hidden');
+        if (document.pointerLockElement) document.exitPointerLock();
+        this.renderInspector();
+      }
+
+      close() {
+        this.isOpen = false;
+        this.modal.classList.add('hidden');
+        if (this.onClose) this.onClose();
+      }
+
+      renderInspector() {
+        const b = CELESTIAL_BODIES[this.selectedBodyKey];
+        if (!b) return;
+        const distAU = this.solarSystem.getDistanceAU(this.currentLocationKey, this.selectedBodyKey);
+        document.getElementById('planet-details-content').innerHTML = `
+          <div class="b-cat">${b.type}</div>
+          <h3 style="font-size: 18px; color: #fff; margin: 4px 0 6px;">${b.name}</h3>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.35; margin-bottom: 10px;">${b.description}</p>
+          <div style="font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
+            <div><span style="color:#64748b;">${tr('Гравитация', 'Gravity')}:</span> ${b.gravity} ${tr('м/с²', 'm/s²')} (${(b.gravity / 9.80665).toFixed(2)} G)</div>
+            <div><span style="color:#64748b;">${tr('Орбита', 'Orbit')}:</span> ${b.semiMajorAxisAU} ${tr('а.е.', 'AU')} (${b.orbitalPeriodDays} ${tr('сут.', 'days')})</div>
+            <div><span style="color:#64748b;">${tr('Дистанция', 'Distance')}:</span> <span class="val-ok">${distAU.toFixed(3)} ${tr('а.е.', 'AU')} (${(distAU * 149.6).toFixed(1)} ${tr('млн км', 'M km')})</span></div>
+            <div><span style="color:#64748b;">${tr('Состав', 'Composition')}:</span> ${b.surfaceComposition || '—'}</div>
+          </div>
+        `;
+
+        const act = document.getElementById('planet-travel-actions');
+        if (this.selectedBodyKey === this.currentLocationKey) {
+          act.innerHTML = `<div class="val-ok" style="font-family: monospace; font-size: 12px;">${tr('ТЕКУЩАЯ ДИСЛОКАЦИЯ ЭКИПАЖА', 'CURRENT CREW LOCATION')}</div>`;
+        } else if (this.selectedBodyKey === 'MOON' || this.selectedBodyKey === 'MARS') {
+          act.innerHTML = `
+            <div style="font-family: monospace; font-size: 11px; color: #7dd3fc; margin-bottom: 6px;">${tr('Импульс перелёта Δv', 'Transfer impulse Δv')}: ~${b.deltaVFromMoonKms} ${tr('км/с', 'km/s')}</div>
+            <button id="launch-exp-btn" class="primary-btn" style="width: 100%; padding: 9px;">${tr('ПЕРЕДИСЛОКАЦИЯ НА', 'RELOCATE TO')} ${b.name}</button>
+          `;
+          document.getElementById('launch-exp-btn').addEventListener('click', () => {
+            this.onTravel(this.selectedBodyKey);
+            this.close();
+          });
+        } else {
+          act.innerHTML = `<div style="font-family: monospace; font-size: 11px; color: #64748b;">${tr('Посадка доступна только на Луну и Марс.', 'Landing is only available on the Moon and Mars.')}</div>`;
+        }
+      }
+
+      updateAndRender() {
+        if (!this.isOpen) return;
+        const rect = this.mapCanvas.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          this.mapRenderer.setSize(rect.width, rect.height, false);
+          this.mapCamera.aspect = rect.width / rect.height;
+          this.mapCamera.updateProjectionMatrix();
+        }
+        for (const [key, mesh] of Object.entries(this.planetMeshes)) {
+          const p = this.solarSystem.positionsAU[key];
+          if (!p) continue;
+          const d = p.length();
+          if (d > 0) mesh.position.copy(p.clone().normalize().multiplyScalar(this.scaleAU(d)));
+        }
+        this.mapCamera.position.set(
+          this.camDistance * Math.cos(this.camPitch) * Math.sin(this.camYaw),
+          this.camDistance * Math.sin(this.camPitch),
+          this.camDistance * Math.cos(this.camPitch) * Math.cos(this.camYaw)
+        );
+        this.mapCamera.lookAt(0, 0, 0);
+        this.mapRenderer.render(this.mapScene, this.mapCamera);
+      }
+    }
+
+    class ResearchUI {
+      constructor(researchManager, robotAI, inventory, player, onClose) {
+        this.researchManager = researchManager;
+        this.robotAI = robotAI;
+        this.inventory = inventory;
+        this.player = player;
+        this.onClose = onClose;
+        this.isOpen = false;
+
+        this.modal = document.createElement('div');
+        this.modal.className = 'modal-overlay hidden';
+        this.modal.style.zIndex = '92';
+        this.modal.innerHTML = `
+          <div class="modal-window">
+            <div class="modal-header">
+              <div><div class="panel-title" data-i18n="res_sub">НАУКА И РОБОТОТЕХНИКА</div><h2 data-i18n="res_title">ТЕХНОЛОГИИ И ДРОНЫ</h2></div>
+              <button id="close-res-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+            </div>
+            <div id="active-res-banner" style="background: rgba(56,189,248,0.12); border: 1px solid #38bdf8; padding: 9px; margin-bottom: 12px; font-family: monospace; font-size: 12px;"></div>
+            <div id="tech-list-grid" class="buildings-grid" style="margin-bottom: 14px;"></div>
+            <div style="border-top: 1px solid rgba(56,189,248,0.3); padding-top: 12px;">
+              <div class="col-header"><span data-i18n="res_rovers">АВТОНОМНЫЕ РОВЕРЫ «ГЕОЛОГ-М1»</span><span id="drone-cnt-lbl">Активно: 0</span></div>
+              <div id="drone-ctrl-box" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(this.modal);
+        document.getElementById('close-res-btn').addEventListener('click', () => this.close());
+      }
+
+      open() {
+        this.isOpen = true;
+        this.render();
+        this.modal.classList.remove('hidden');
+        if (document.pointerLockElement) document.exitPointerLock();
+      }
+
+      close() {
+        this.isOpen = false;
+        this.modal.classList.add('hidden');
+        if (this.onClose) this.onClose();
+      }
+
+      render() {
+        const banner = document.getElementById('active-res-banner');
+        if (this.researchManager.activeResearchId) {
+          const t = TECHNOLOGIES_CATALOG[this.researchManager.activeResearchId];
+          banner.innerHTML = `${tr('ИССЛЕДОВАНИЕ', 'RESEARCH')}: <strong>${t.name}</strong> — <span class="val-ok">${this.researchManager.getProgressPercent().toFixed(0)}%</span>`;
+        } else {
+          banner.textContent = tr('Активное исследование: Ожидание выбора темы', 'Active research: Waiting for topic selection');
+        }
+
+        const grid = document.getElementById('tech-list-grid');
+        grid.innerHTML = '';
+        Object.values(TECHNOLOGIES_CATALOG).forEach((tech) => {
+          const unlocked = this.researchManager.isUnlocked(tech.id);
+          const inProg = this.researchManager.activeResearchId === tech.id;
+          const can = this.researchManager.canStartResearch(tech.id);
+          const costStr = Object.entries(tech.cost).map(([id, cnt]) => {
+            const have = this.inventory.getItemCount(id);
+            return `<div class="${have >= cnt ? 'val-ok' : 'val-err'}">${ITEMS_CATALOG[id]?.name || id}: ${have}/${cnt}</div>`;
+          }).join('');
+
+          const card = document.createElement('div');
+          card.className = 'building-card';
+          card.innerHTML = `
+            <div>
+              <div class="b-cat">${tech.branch}</div>
+              <div class="b-title">${tech.name}</div>
+              <div class="b-desc">${tech.description}</div>
+              <div class="b-cost"><div class="cost-title">${tr('ОБРАЗЦЫ', 'SAMPLES')} (${tech.researchTimeSec} ${tr('сек', 'sec')}):</div>${costStr}</div>
+            </div>
+            <button class="primary-btn" ${unlocked || inProg || !can ? 'disabled' : ''}>
+              ${unlocked ? tr('ИЗУЧЕНО', 'RESEARCHED') : inProg ? tr('ИДЁТ АНАЛИЗ...', 'ANALYZING...') : can ? tr('ИЗУЧИТЬ', 'RESEARCH') : tr('МАЛО ОБРАЗЦОВ', 'NOT ENOUGH SAMPLES')}
+            </button>
+          `;
+          card.querySelector('button').addEventListener('click', () => {
+            if (this.researchManager.startResearch(tech.id)) this.render();
+          });
+          grid.appendChild(card);
+        });
+
+        const box = document.getElementById('drone-ctrl-box');
+        document.getElementById('drone-cnt-lbl').textContent = `${tr('Активно дронов', 'Active drones')}: ${this.robotAI.robots.length}`;
+        box.innerHTML = '';
+
+        if (!this.researchManager.isUnlocked('AUTONOMOUS_MINING_DRONE')) {
+          box.innerHTML = `<div class="empty-msg">${tr('Изучите технологию «Автономный ровер-шахтёр „Геолог-М1“» выше.', 'Research the "Autonomous mining rover Geolog-M1" technology above.')}</div>`;
+          return;
+        }
+
+        const canBuild = this.inventory.getItemCount('TI_FE_INGOT') >= 2 && this.inventory.getItemCount('SILICON_WAFER') >= 2;
+        const btn = document.createElement('button');
+        btn.className = 'primary-btn';
+        btn.disabled = !canBuild;
+        btn.textContent = canBuild ? tr('Собрать дрона (2 Сплава + 2 Кремния)', 'Build drone (2 Alloy + 2 Silicon)') : tr('Нужно: 2 Сплава + 2 Кремния', 'Required: 2 Alloy + 2 Silicon');
+        btn.addEventListener('click', () => {
+          if (this.inventory.removeItem('TI_FE_INGOT', 2) && this.inventory.removeItem('SILICON_WAFER', 2)) {
+            this.robotAI.spawnRobot(this.player.position.x + 2.5, this.player.position.z + 2.5);
+            this.render();
+          }
+        });
+        box.appendChild(btn);
+
+        ['ALL', 'REGOLITH', 'ORES'].forEach((pId) => {
+          const labels = { ALL: tr('Все породы', 'All rocks'), REGOLITH: tr('Реголит', 'Regolith'), ORES: tr('Руды', 'Ores') };
+          const pBtn = document.createElement('button');
+          pBtn.className = 'close-btn';
+          pBtn.style.borderColor = this.robotAI.priorityFilter === pId ? '#22c55e' : '#38bdf8';
+          pBtn.style.color = this.robotAI.priorityFilter === pId ? '#4ade80' : '#7dd3fc';
+          pBtn.textContent = `${tr('Цель', 'Target')}: ${labels[pId]}`;
+          pBtn.addEventListener('click', () => { this.robotAI.priorityFilter = pId; this.render(); });
+          box.appendChild(pBtn);
+        });
+      }
+    }
+
+    // =========================================================================
+    // 12. ГЛАВНЫЙ КОНТРОЛЛЕР ИГРЫ
+    // =========================================================================
+    class Game {
+      constructor(canvas) {
+        this.currentBody = CELESTIAL_BODIES.MOON;
+        this.isRunning = false;
+        this.autoSaveTimer = 0;
+        this.currentLang = 'ru';
+
+        this.sceneManager = new SceneManager(canvas);
+        this.timeManager = new TimeManager(this.currentBody);
+        this.saveManager = new SaveManager();
+        this.soundManager = new SoundManager();
+
+        this.solarSystem = new SolarSystem();
+        this.terrain = new PlanetaryTerrain(this.currentBody, false);
+        this.skyDome = new SkyDome();
+        this.dustStormSystem = new DustStormSystem(this.sceneManager.scene);
+
+        this.sceneManager.scene.add(this.terrain.mesh, this.skyDome.group);
+
+        this.player = new PlayerController(this.sceneManager.camera, this.terrain, this.currentBody);
+        this.inventory = new Inventory(120.0);
+        this.inventory.onChange((inv) => this.player.updateEquipmentMass(inv.getTotalMassKg()));
+        this.suitSystem = new SuitSystem();
+
+        this.thermalSystem = new ThermalSystem(this.currentBody);
+        this.radiationSystem = new RadiationSystem(this.currentBody);
+
+        this.lander = new LunarLander(this.sceneManager.scene, this.terrain, 0, -10);
+        this.miningSystem = new MiningSystem(this.sceneManager.scene, this.sceneManager.camera, this.terrain, this.inventory);
+        this.craftingSystem = new CraftingSystem(this.inventory);
+        this.spaceship = new Spaceship();
+
+        this.buildingManager = new BuildingManager(this.sceneManager.scene, this.terrain);
+        this.placementSystem = new PlacementSystem(this.sceneManager.scene, this.sceneManager.camera, this.terrain, this.buildingManager, this.inventory);
+        this.researchManager = new ResearchManager(this.inventory);
+        this.robotAI = new RobotAI(this.sceneManager.scene, this.terrain, this.miningSystem, this.lander);
+        this.mobileControls = new MobileControls(this);
+
+        this.createOverlays();
+
+        const resumeGame = () => {
+          if (!this.inventoryUI.isOpen && !this.buildingUI.isOpen && !this.mapUI.isOpen && !this.researchUI.isOpen && !this.suitSystem.isDead) {
+            document.getElementById('hud').classList.remove('hidden');
+            this.isRunning = true;
+            this.mobileControls.setVisible(true);
+            this.player.lockControls();
+          }
+        };
+
+        this.tutorialUI = new TutorialUI(resumeGame);
+        this.inventoryUI = new InventoryUI(this.inventory, this.craftingSystem, this.lander, resumeGame);
+        this.buildingUI = new BuildingUI(this.placementSystem, this.inventory, this.researchManager, resumeGame);
+        this.mapUI = new MapUI(this.solarSystem, (key) => this.travelToPlanet(key), resumeGame);
+        this.researchUI = new ResearchUI(this.researchManager, this.robotAI, this.inventory, this.player, resumeGame);
+
+        this.lastFrameTime = performance.now();
+        this.accumulator = 0;
+        this.fixedStep = 1 / 120;
+        this.frameCount = 0;
+        this.fpsTimer = 0;
+
+        this.bindEvents();
+      }
+
+      setLanguage(lang) {
+        this.currentLang = lang;
+        LANG = lang;
+        document.documentElement.lang = lang;
+
+        // Статичные подписи (HTML и окна)
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+          const key = el.getAttribute('data-i18n');
+          if (I18N[lang][key]) el.innerHTML = I18N[lang][key];
+        });
+
+        // Динамические подписи HUD
+        const body = this.currentBody;
+        document.getElementById('hud-body').textContent = body.region ? `${body.name} (${body.region})` : body.name;
+        document.getElementById('hud-gravity').textContent = `g = ${body.gravity.toFixed(2)} ${tr('м/с²', 'm/s²')}`;
+        document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${this.timeManager.timeScale}`;
+        this.updateHUD(0);
+        document.getElementById('hud-time').textContent = this.timeManager.getFormattedMET();
+
+        // Окна и обучение
+        this.tutorialUI.setLanguage(lang);
+        if (this.inventoryUI.isOpen) this.inventoryUI.render();
+        if (this.buildingUI.isOpen) this.buildingUI.renderList();
+        if (this.researchUI.isOpen) this.researchUI.render();
+        this.mapUI.refreshLabels();
+        this.buildingUI.updateBanner();
+        if (this.suitSystem.isDead) document.getElementById('death-reason-txt').textContent = this.suitSystem.deathReason;
+      }
+
+      createOverlays() {
+        this.promptEl = document.createElement('div');
+        this.promptEl.style.cssText = 'position:fixed;top:54%;left:50%;transform:translateX(-50%);background:rgba(9,14,26,0.88);border:1px solid #38bdf8;border-radius:4px;padding:6px 14px;font-family:monospace;font-size:11px;color:#e0f2fe;pointer-events:none;z-index:15;display:none;text-align:center;';
+        document.body.appendChild(this.promptEl);
+
+        this.toastEl = document.createElement('div');
+        this.toastEl.style.cssText = 'position:fixed;top:105px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.95);border:1px solid #22c55e;border-radius:4px;color:#4ade80;padding:7px 16px;font-family:monospace;font-size:11px;z-index:120;display:none;pointer-events:none;text-align:center;';
+        document.body.appendChild(this.toastEl);
+
+        this.deathModal = document.createElement('div');
+        this.deathModal.className = 'modal-overlay hidden';
+        this.deathModal.style.zIndex = '150';
+        this.deathModal.innerHTML = `
+          <div class="modal-window" style="max-width:460px;text-align:center;border-color:#ef4444;">
+            <div class="panel-title" style="color:#ef4444;" data-i18n="death_sub">КРИТИЧЕСКИЙ ОТКАЗ СЖО</div>
+            <h2 style="margin:10px 0;color:#fca5a5;" data-i18n="death_title">АСТРОНАВТ ПОГИБ</h2>
+            <p id="death-reason-txt" style="color:#cbd5e1;margin-bottom:20px;font-size:13px;"></p>
+            <button id="respawn-btn" class="primary-btn" style="background:#b91c1c;border-color:#ef4444;" data-i18n="respawn">ЭВАКУАЦИЯ В МОДУЛЬ</button>
+          </div>
+        `;
+        document.body.appendChild(this.deathModal);
+      }
+
+      showToast(msg, isErr = false) {
+        this.toastEl.textContent = msg;
+        this.toastEl.style.borderColor = isErr ? '#ef4444' : '#22c55e';
+        this.toastEl.style.color = isErr ? '#fca5a5' : '#4ade80';
+        this.toastEl.style.display = 'block';
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => { this.toastEl.style.display = 'none'; }, 3000);
+      }
+
+      closeAllModals() {
+        if (this.inventoryUI.isOpen) this.inventoryUI.close();
+        if (this.buildingUI.isOpen) this.buildingUI.close();
+        if (this.mapUI.isOpen) this.mapUI.close();
+        if (this.researchUI.isOpen) this.researchUI.close();
+      }
+
+      bindEvents() {
+        const startBtn = document.getElementById('start-btn');
+        const langBtn = document.getElementById('lang-btn');
+        const overlay = document.getElementById('overlay');
+        const hudEl = document.getElementById('hud');
+
+        document.querySelectorAll('.quality-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.quality-btn').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.sceneManager.setQuality(btn.dataset.q);
+          });
+        });
+
+        const toggleLang = () => {
+          const next = this.currentLang === 'ru' ? 'en' : 'ru';
+          this.setLanguage(next);
+          this.showToast(next === 'en' ? 'Language: English' : 'Язык: Русский');
+        };
+
+        langBtn.addEventListener('click', toggleLang);
+        document.getElementById('qb-lang').addEventListener('click', toggleLang);
+
+        startBtn.addEventListener('click', () => {
+          this.soundManager.init();
+          overlay.classList.add('hidden');
+          this.tutorialUI.open(this.currentLang);
+        });
+
+        document.getElementById('respawn-btn').addEventListener('click', () => this.respawnPlayer());
+
+        document.getElementById('qb-inv').addEventListener('click', () => { this.closeAllModals(); this.mobileControls.setVisible(false); this.inventoryUI.open(false); });
+        document.getElementById('qb-build').addEventListener('click', () => { this.closeAllModals(); this.mobileControls.setVisible(false); this.buildingUI.open(); });
+        document.getElementById('qb-map').addEventListener('click', () => { this.closeAllModals(); this.mobileControls.setVisible(false); this.mapUI.open(); });
+        document.getElementById('qb-res').addEventListener('click', () => { this.closeAllModals(); this.mobileControls.setVisible(false); this.researchUI.open(); });
+        document.getElementById('qb-tut').addEventListener('click', () => { this.closeAllModals(); this.mobileControls.setVisible(false); this.tutorialUI.open(this.currentLang); });
+        document.getElementById('qb-time').addEventListener('click', () => {
+          const s = this.timeManager.cycleTimeScale();
+          document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${s}`;
+        });
+        document.getElementById('qb-save').addEventListener('click', async () => {
+          await this.saveManager.saveGame('slot_1', this);
+          this.showToast(this.currentLang === 'ru' ? 'МИР СОХРАНЁН' : 'WORLD SAVED');
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+          const isLocked = document.pointerLockElement === document.body;
+          if (isLocked) {
+            overlay.classList.add('hidden');
+            hudEl.classList.remove('hidden');
+            this.isRunning = true;
+            this.lastFrameTime = performance.now();
+          } else {
+            this.miningSystem.setMiningActive(false);
+          }
+        });
+
+        document.addEventListener('keydown', async (e) => {
+          if (e.code === 'KeyH' && this.suitSystem.isDead) { this.respawnPlayer(); return; }
+          if (this.suitSystem.isDead) return;
+
+          if (e.code === 'Escape') {
+            const anyOpen = this.inventoryUI.isOpen || this.buildingUI.isOpen || this.mapUI.isOpen || this.researchUI.isOpen;
+            if (anyOpen) {
+              this.closeAllModals();
+            } else if (this.placementSystem.isActive) {
+              this.placementSystem.cancel();
+            } else if (this.isRunning) {
+              this.isRunning = false;
+              this.mobileControls.setVisible(false);
+              overlay.classList.remove('hidden');
+              hudEl.classList.add('hidden');
+              if (document.pointerLockElement) document.exitPointerLock();
+            }
+            return;
+          }
+
+          if (e.code === 'F5') { e.preventDefault(); await this.saveManager.saveGame('slot_1', this); this.showToast(this.currentLang === 'ru' ? 'МИР СОХРАНЁН' : 'WORLD SAVED'); return; }
+          if (e.code === 'F9') { e.preventDefault(); await this.restoreFromSave('slot_1'); return; }
+          if (e.code === 'KeyV') { const on = this.soundManager.toggleMute(); this.showToast(`${tr('Звук', 'Sound')}: ${on ? tr('ВКЛ', 'ON') : tr('ВЫКЛ', 'OFF')}`); }
+          if (e.code === 'Tab') { e.preventDefault(); const was = this.inventoryUI.isOpen; this.closeAllModals(); if (!was) this.inventoryUI.open(false); }
+          if (e.code === 'KeyB') { const was = this.buildingUI.isOpen; this.closeAllModals(); if (!was) this.buildingUI.open(); }
+          if (e.code === 'KeyM') { const was = this.mapUI.isOpen; this.closeAllModals(); if (!was) this.mapUI.open(); }
+          if (e.code === 'KeyN') { const was = this.researchUI.isOpen; this.closeAllModals(); if (!was) this.researchUI.open(); }
+          if (e.code === 'KeyR' && this.placementSystem.isActive) this.placementSystem.rotate();
+          if (e.code === 'KeyE' && this.isRunning) {
+            const hit = this.miningSystem.getLookAtTarget([this.lander.group]);
+            if (hit && hit.object.userData.interactable?.type === 'LANDER_TERMINAL') this.inventoryUI.open(true);
+          }
+          if (e.code === 'KeyX' && this.isRunning && !this.placementSystem.isActive) {
+            const hit = this.miningSystem.getLookAtTarget(this.buildingManager.buildings.map((b) => b.mesh));
+            if (hit && hit.object.userData.building) {
+              const b = hit.object.userData.building;
+              Object.entries(b.config.cost).forEach(([id, c]) => this.inventory.addItem(id, Math.max(1, Math.floor(c * 0.8))));
+              this.buildingManager.removeBuilding(b);
+              this.soundManager.playBuildSuccess();
+            }
+          }
+          if (e.code === 'KeyP' && this.isRunning && this.dustStormSystem.toggleStormManual()) this.showToast(tr('Переключение пылевой бури', 'Dust storm toggled'));
+          if (e.code === 'KeyY') { this.timeManager.increaseTimeScale(); document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${this.timeManager.timeScale}`; }
+          if (e.code === 'KeyT') { this.timeManager.decreaseTimeScale(); document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${this.timeManager.timeScale}`; }
+        });
+
+        document.addEventListener('mousedown', (e) => {
+          if (!this.isRunning || this.suitSystem.isDead) return;
+          if (this.inventoryUI.isOpen || this.buildingUI.isOpen || this.mapUI.isOpen || this.researchUI.isOpen) return;
+          if (e.target.tagName === 'BUTTON' || e.target.closest('#mobile-controls') || e.target.closest('#tutorial-overlay')) return;
+
+          this.soundManager.init();
+          if (document.pointerLockElement !== document.body) this.player.lockControls();
+
+          if (this.placementSystem.isActive) {
+            if (e.button === 0 && this.placementSystem.confirmPlacement()) this.soundManager.playBuildSuccess();
+            else if (e.button === 2) this.placementSystem.cancel();
+            return;
+          }
+          if (e.button === 0) this.miningSystem.setMiningActive(true);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+          if (e.button === 0) this.miningSystem.setMiningActive(false);
+        });
+      }
+
+      travelToPlanet(bodyKey, skipFuel = false) {
+        const newBody = CELESTIAL_BODIES[bodyKey];
+        if (!newBody || newBody.id === this.currentBody.id) return;
+
+        if (!skipFuel) {
+          if (this.researchManager.isUnlocked('METHALOX_PROPULSION')) this.spaceship.ispSeconds = 380;
+          const burn = this.spaceship.executeTransferBurn(newBody.deltaVFromMoonKms || 4.3);
+          if (!burn.success) { this.showToast(burn.reason, true); return; }
+          this.spaceship.refuel(35000);
+        }
+
+        this.currentBody = newBody;
+        this.mapUI.currentLocationKey = bodyKey;
+
+        while (this.buildingManager.buildings.length > 0) this.buildingManager.removeBuilding(this.buildingManager.buildings[0]);
+        this.robotAI.clearAllRobots();
+
+        const isMars = bodyKey === 'MARS';
+        this.sceneManager.scene.remove(this.terrain.mesh);
+        this.terrain = new PlanetaryTerrain(this.currentBody, isMars);
+        this.sceneManager.scene.add(this.terrain.mesh);
+
+        this.player.terrain = this.terrain;
+        this.player.gravity = this.currentBody.gravity;
+        this.buildingManager.terrain = this.terrain;
+        this.placementSystem.terrain = this.terrain;
+        this.miningSystem.terrain = this.terrain;
+        this.robotAI.terrain = this.terrain;
+        this.miningSystem.spawnResourceNodes(isMars);
+
+        this.thermalSystem.bodyConfig = this.currentBody;
+        this.radiationSystem.baseBackgroundMsvPerHour = this.currentBody.radiationBackground;
+
+        this.dustStormSystem.setEnabled(isMars);
+        this.skyDome.earthGroup.visible = !isMars;
+
+        this.lander.position.set(0, this.terrain.getHeightAt(0, -10), -10);
+        this.lander.group.position.copy(this.lander.position);
+
+        this.player.position.set(0, this.terrain.getHeightAt(0, 0), 0);
+        this.player.velocity.set(0, 0, 0);
+
+        document.getElementById('hud-body').textContent = `${this.currentBody.name} (${this.currentBody.region})`;
+        document.getElementById('hud-gravity').textContent = `g = ${this.currentBody.gravity.toFixed(2)} ${tr('м/с²', 'm/s²')}`;
+        this.showToast(`${tr('ПОСАДКА ЗАВЕРШЕНА', 'LANDING COMPLETE')}: ${this.currentBody.name}`);
+      }
+
+      async restoreFromSave(slotId) {
+        const data = await this.saveManager.loadGame(slotId);
+        if (!data) { this.showToast(tr('Сохранение не найдено', 'Save not found'), true); return; }
+
+        if (data.bodyKey !== this.currentBody.id.toUpperCase()) this.travelToPlanet(data.bodyKey, true);
+        this.timeManager.elapsedMissionSeconds = data.missionSeconds || 0;
+        this.player.position.set(data.player.x, data.player.y, data.player.z);
+        this.player.euler.y = data.player.yaw || 0;
+        this.player.euler.x = data.player.pitch || 0;
+        this.inventory.items = { ...data.inventory };
+        this.inventory.notifyChange();
+        this.lander.cargoStorage = { ...data.landerCargo };
+        Object.assign(this.suitSystem, data.suit);
+        this.suitSystem.isDead = false;
+
+        while (this.buildingManager.buildings.length > 0) this.buildingManager.removeBuilding(this.buildingManager.buildings[0]);
+        for (const b of data.buildings || []) {
+          const inst = this.buildingManager.placeBuilding(b.id, new THREE.Vector3(b.x, b.y, b.z), b.rotationY);
+          if (inst && b.storedEnergyWh !== undefined) inst.storedEnergyWh = b.storedEnergyWh;
+        }
+        this.researchManager.unlockedTechs = new Set(data.unlockedTechs || []);
+        this.robotAI.clearAllRobots();
+        for (let i = 0; i < (data.robotCount || 0); i++) {
+          this.robotAI.spawnRobot(this.player.position.x + 2 + i * 1.5, this.player.position.z + 2);
+        }
+        this.showToast(`${tr('ЗАГРУЖЕНО', 'LOADED')}: ${new Date(data.timestamp).toLocaleTimeString()}`);
+      }
+
+      respawnPlayer() {
+        this.suitSystem.respawnAtLander();
+        this.player.position.set(0, this.terrain.getHeightAt(0, -4), -4);
+        this.player.velocity.set(0, 0, 0);
+        this.deathModal.classList.add('hidden');
+        this.isRunning = true;
+        this.mobileControls.setVisible(true);
+        this.player.lockControls();
+      }
+
+      start() {
+        this.updateWorld(0.016);
+        this.sceneManager.render();
+        requestAnimationFrame((t) => this.loop(t));
+      }
+
+      loop(now) {
+        requestAnimationFrame((t) => this.loop(t));
+        const frameDt = Math.min((now - this.lastFrameTime) / 1000, 0.1);
+        this.lastFrameTime = now;
+
+        const { sunDir, scaledDt } = this.updateWorld(this.isRunning || this.mapUI.isOpen ? frameDt : 0);
+        if (this.mapUI.isOpen) this.mapUI.updateAndRender();
+
+        if (this.isRunning && !this.suitSystem.isDead) {
+          this.accumulator += frameDt;
+          while (this.accumulator >= this.fixedStep) {
+            this.player.updatePhysics(this.fixedStep);
+            this.accumulator -= this.fixedStep;
+          }
+
+          const irrRatio = this.currentBody.solarIrradiance / 1361.0;
+          const stormTrans = this.dustStormSystem.getSolarTransmittance();
+          this.buildingManager.update(scaledDt, sunDir, irrRatio * stormTrans);
+
+          const doneTech = this.researchManager.update(scaledDt);
+          if (doneTech) {
+            if (doneTech === 'IMPROVED_SUIT_INSULATION') this.suitSystem.thermalLossMultiplier = 0.5;
+            if (doneTech === 'METHALOX_PROPULSION') this.spaceship.ispSeconds = 380;
+            this.soundManager.playBuildSuccess();
+            this.showToast(`${tr('ИЗУЧЕНО', 'RESEARCHED')}: ${TECHNOLOGIES_CATALOG[doneTech]?.name}`);
+          }
+
+          this.robotAI.update(scaledDt);
+          this.dustStormSystem.update(scaledDt, this.player.position, sunDir);
+
+          const occluders = [this.terrain.mesh, this.lander.group, ...this.buildingManager.buildings.map((b) => b.mesh)];
+          const inSun = this.thermalSystem.isPointInSunlight(this.player.position, sunDir, occluders);
+          const inHab = this.buildingManager.isPlayerInPressurizedZone(this.player.position);
+          const nearLander = this.player.position.distanceTo(this.lander.position) <= 5.5;
+
+          const ambT = this.thermalSystem.calculateAmbientTempC(inSun, sunDir, inHab && this.buildingManager.powerNetwork.isPowered);
+          const dose = this.radiationSystem.getCurrentDoseRate(inSun, inHab && this.buildingManager.powerNetwork.isPowered, nearLander);
+
+          this.suitSystem.update(scaledDt, {
+            horizontalSpeed: this.player.getHorizontalSpeed(),
+            cargoMassKg: this.inventory.getTotalMassKg(),
+            flashlightOn: this.player.flashlightOn,
+            ambientTempC: ambT,
+            doseRateMsvH: dose,
+            isInHabModule: inHab,
+            isNearLander: nearLander,
+            baseHasPower: this.buildingManager.powerNetwork.isPowered
+          });
+
+          this.miningSystem.update(frameDt);
+          this.placementSystem.update(this.player.position, this.lander.position);
+          this.buildingUI.updateBanner();
+          this.updateCrosshairPrompt();
+
+          this.soundManager.update(frameDt, {
+            isGrounded: this.player.isGrounded,
+            horizontalSpeed: this.player.getHorizontalSpeed(),
+            isMining: this.miningSystem.isMining && Boolean(this.miningSystem.currentTargetNode),
+            stormIntensity: this.dustStormSystem.stormIntensity,
+            isMars: this.currentBody.id === 'mars',
+            lowO2OrBattery: this.suitSystem.getOxygenPercent() < 20 || this.suitSystem.getBatteryPercent() < 15
+          });
+
+          this.autoSaveTimer += frameDt;
+          if (this.autoSaveTimer >= 90) {
+            this.autoSaveTimer = 0;
+            this.saveManager.saveGame('autosave', this).catch(() => {});
+          }
+
+          this.updateHUD(frameDt);
+        }
+
+        this.sceneManager.render();
+      }
+
+      updateCrosshairPrompt() {
+        if (this.placementSystem.isActive) { this.promptEl.style.display = 'none'; return; }
+        const hit = this.miningSystem.getLookAtTarget([this.lander.group, ...this.buildingManager.buildings.map((b) => b.mesh)]);
+        if (!hit) { this.promptEl.style.display = 'none'; return; }
+
+        if (hit.object.userData.resourceNode) {
+          const n = hit.object.userData.resourceNode;
+          const pct = Math.round(this.miningSystem.miningProgress * 100);
+          this.promptEl.textContent = `${tr('Добыча', 'Mining')}: ${ITEMS_CATALOG[n.itemId]?.name} (${n.remainingYield}) ${pct > 0 ? `[${pct}%]` : ''}`;
+          this.promptEl.style.display = 'block';
+        } else if (hit.object.userData.interactable) {
+          this.promptEl.textContent = `[E] ${hit.object.userData.interactable.label}`;
+          this.promptEl.style.display = 'block';
+        } else if (hit.object.userData.building) {
+          this.promptEl.textContent = `${hit.object.userData.building.config.name} | [X] ${tr('Снос', 'Demolish')}`;
+          this.promptEl.style.display = 'block';
+        } else {
+          this.promptEl.style.display = 'none';
+        }
+      }
+
+      updateHUD(dt) {
+        this.frameCount++;
+        this.fpsTimer += dt;
+        if (this.fpsTimer >= 0.5) {
+          document.getElementById('hud-fps').textContent = `FPS: ${Math.round(this.frameCount / this.fpsTimer)}`;
+          this.frameCount = 0;
+          this.fpsTimer = 0;
+        }
+
+        document.getElementById('hud-coords').textContent = `X: ${this.player.position.x.toFixed(1)} ${tr('м', 'm')} | Z: ${this.player.position.z.toFixed(1)} ${tr('м', 'm')}`;
+        document.getElementById('hud-time').textContent = this.timeManager.getFormattedMET();
+        document.getElementById('hud-sun-angle').textContent = `${tr('Солнце', 'Sun')}: ${this.timeManager.getSunElevationDegrees().toFixed(1)}°`;
+
+        const atm = this.suitSystem.isPressurizedSafeZone
+          ? tr('Гермозона (70 кПа)', 'Pressurized zone (70 kPa)')
+          : this.currentBody.id === 'mars' ? tr('610 Па (CO₂)', '610 Pa (CO₂)') : tr('Вакуум (0 Па)', 'Vacuum (0 Pa)');
+        document.getElementById('hud-atmosphere').textContent = atm;
+
+        const o2Pct = this.suitSystem.getOxygenPercent();
+        const o2El = document.getElementById('hud-o2');
+        o2El.textContent = `${o2Pct.toFixed(1)}% (${this.suitSystem.oxygenGrams.toFixed(0)} ${tr('г', 'g')})`;
+        o2El.className = o2Pct > 25 ? 'val-ok' : 'val-err';
+
+        const ambStr = `${this.suitSystem.ambientTempC >= 0 ? '+' : ''}${this.suitSystem.ambientTempC.toFixed(0)}°C`;
+        document.getElementById('hud-temp').textContent = `+${this.suitSystem.internalTempC.toFixed(1)}°C (${ambStr})`;
+        document.getElementById('hud-rad').textContent = `${this.suitSystem.currentDoseRateMsvH.toFixed(2)} ${tr('мЗв/ч', 'mSv/h')}`;
+        document.getElementById('hud-status').textContent = `${this.player.getHorizontalSpeed().toFixed(1)} ${tr('м/с', 'm/s')} | ${this.player.flashlightOn ? tr('ВКЛ', 'ON') : tr('ВЫКЛ', 'OFF')}`;
+
+        const net = this.buildingManager.powerNetwork;
+        const pBal = document.getElementById('hud-power-bal');
+        pBal.textContent = `+${(net.totalGenerationW / 1000).toFixed(1)} / -${(net.totalConsumptionW / 1000).toFixed(1)} ${tr('кВт', 'kW')}`;
+        pBal.className = net.netPowerW >= 0 ? 'val-ok' : 'val-warn';
+
+        document.getElementById('hud-bat-bank').textContent = net.totalCapacityWh > 0
+          ? `${net.getBatteryPercentage().toFixed(0)}% (${(net.storedEnergyWh / 1000).toFixed(1)} ${tr('кВт·ч', 'kWh')})`
+          : tr('Нет АКБ', 'No batteries');
+
+        const sbPct = this.suitSystem.getBatteryPercent();
+        const sbEl = document.getElementById('hud-suit-bat');
+        sbEl.textContent = `${sbPct.toFixed(1)}%`;
+        sbEl.className = sbPct > 20 ? 'val-ok' : 'val-err';
+
+        document.getElementById('hud-zone-hp').textContent = `${this.suitSystem.health.toFixed(0)}% | ${tr('Дронов', 'Drones')}: ${this.robotAI.robots.length}`;
+        document.getElementById('hud-fuel').textContent = `${tr('Корабль Δv', 'Ship Δv')}: ${this.spaceship.getAvailableDeltaVKms().toFixed(2)} ${tr('км/с', 'km/s')}`;
+
+        if (this.suitSystem.isDead) {
+          document.getElementById('death-reason-txt').textContent = this.suitSystem.deathReason;
+          this.deathModal.classList.remove('hidden');
+          this.mobileControls.setVisible(false);
+          if (document.pointerLockElement) document.exitPointerLock();
+        }
+      }
+
+      updateWorld(dt) {
+        const scaledDt = this.timeManager.update(dt);
+        this.solarSystem.update(this.timeManager.elapsedMissionSeconds);
+        const sunDir = this.skyDome.update(this.player.position, this.timeManager.sunElevationRad, this.timeManager.sunAzimuthRad);
+        this.sceneManager.updateSunAndShadows(this.player.position, sunDir);
+        return { sunDir, scaledDt };
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const game = new Game(document.getElementById('game-canvas'));
+      game.start();
+    });
+  </script>
+</body>
+</html>
