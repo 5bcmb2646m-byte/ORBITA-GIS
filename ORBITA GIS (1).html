@@ -1,0 +1,3361 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORBITA-GIS | Planetary Analog, Live Wind & NASA Orbital Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="image" href="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=70" fetchpriority="high">
+<link rel="dns-prefetch" href="https://mt1.google.com">
+<link rel="dns-prefetch" href="https://gibs.earthdata.nasa.gov">
+<link rel="dns-prefetch" href="https://trek.nasa.gov">
+<link rel="dns-prefetch" href="https://api.open-meteo.com">
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<!-- Fonts and Leaflet CSS load without blocking first paint -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</noscript>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg: #05060f;
+    --panel: #0d1021;
+    --line: #232742;
+    --purple: #635bff;
+    --cyan: #38bdf8;
+    --mars: #f97316;
+    --moon: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: #eef2ff;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.025em;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  .glass {
+    background: rgba(11, 14, 28, 0.85);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .glass-card {
+    background: rgba(15, 19, 38, 0.76);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .glass-card:hover {
+    background: rgba(24, 30, 58, 0.9);
+    border-color: rgba(99, 91, 255, 0.55);
+    transform: translateY(-2px);
+  }
+  .card-grad {
+    background: linear-gradient(155deg, rgba(20, 24, 48, 0.95), rgba(9, 11, 23, 0.98));
+    border: 1px solid var(--line);
+  }
+  .map-overlay {
+    background: rgba(11, 14, 28, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .leaflet-container {
+    background: #060812 !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #11152b !important;
+    color: #f4f6ff !important;
+    border: 1px solid #353b63;
+    border-radius: 12px;
+  }
+  input[type=range] { accent-color: #635bff; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #070914; }
+  ::-webkit-scrollbar-thumb { background: #2c3154; border-radius: 99px; }
+
+  .nav-link-item { position: relative; padding-bottom: 6px; }
+  .nav-link-item.active::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 3px; border-radius: 99px;
+    background: #635bff;
+    box-shadow: 0 0 12px rgba(99, 91, 255, 0.85);
+  }
+  .hero-bg-layer { transition: opacity 0.65s ease-in-out, transform 8s ease-out; }
+
+  @keyframes planetDrift {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .planet-3d {
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+  .planet-3d::before {
+    content: '';
+    position: absolute;
+    inset: -35%;
+    border-radius: 50%;
+    animation: planetDrift 18s linear infinite;
+    pointer-events: none;
+  }
+  .planet-3d::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 26%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.08) 38%, rgba(4,7,18,0.65) 86%, rgba(2,4,10,0.92) 100%);
+    pointer-events: none;
+  }
+  .planet-earth {
+    background: radial-gradient(circle at 35% 35%, #38bdf8 0%, #0284c7 55%, #1e3a8a 100%);
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
+  }
+  .planet-earth::before {
+    background:
+      radial-gradient(ellipse 34% 24% at 32% 38%, #4ade80 0%, #16a34a 70%, transparent 75%),
+      radial-gradient(ellipse 28% 36% at 68% 58%, #22c55e 0%, #15803d 70%, transparent 75%);
+  }
+  .planet-mars {
+    background: radial-gradient(circle at 35% 35%, #fb923c 0%, #ea580c 52%, #7c2d12 100%);
+    box-shadow: 0 0 14px rgba(249, 115, 22, 0.55);
+  }
+  .planet-mars::before {
+    animation-duration: 24s;
+    background:
+      radial-gradient(ellipse 38% 22% at 36% 42%, #9a3412 0%, transparent 72%),
+      radial-gradient(ellipse 30% 28% at 66% 62%, #7c2d12 0%, transparent 72%);
+  }
+  .planet-moon {
+    background: radial-gradient(circle at 35% 35%, #f1f5f9 0%, #94a3b8 55%, #334155 100%);
+    box-shadow: 0 0 14px rgba(203, 213, 225, 0.45);
+  }
+  .planet-moon::before {
+    animation-duration: 30s;
+    background:
+      radial-gradient(circle at 34% 36%, rgba(71,85,105,0.65) 0%, transparent 24%),
+      radial-gradient(circle at 64% 48%, rgba(51,65,85,0.7) 0%, transparent 28%);
+  }
+
+  #tabStrip { scrollbar-width: none; -ms-overflow-style: none; }
+  #tabStrip::-webkit-scrollbar { display: none; }
+  .tab-btn.active { background: #635bff; color: #fff; border-color: #635bff; box-shadow: 0 0 14px rgba(99,91,255,.55); }
+  #screen2 section[id] { scroll-margin-top: 72px; }
+  #screen1 > div:first-child { min-height: 100vh; min-height: 100svh; }
+  #screen2 { animation: scrFade .4s ease both; }
+  @keyframes scrFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .map-filter-geology .leaflet-tile-pane { filter: saturate(1.45) contrast(1.15); }
+  .map-filter-soil .leaflet-tile-pane { filter: sepia(0.35) saturate(1.35) contrast(1.12); }
+
+  #windParticleCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 420;
+  }
+
+  .ui-icon {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    vertical-align: -2px;
+    flex-shrink: 0;
+  }
+  .ui-icon-lg {
+    width: 24px;
+    height: 24px;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  /* Fullscreen game container mode */
+  .game-stage-fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 5000 !important;
+    border-radius: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+  }
+  .game-stage-fullscreen #gameViewport {
+    height: calc(100vh - 48px) !important;
+    height: calc(100dvh - 48px) !important;
+  }
+</style>
+</head>
+<body class="antialiased selection:bg-indigo-500 selection:text-white">
+
+<!-- SVG VECTOR SPRITES -->
+<svg xmlns="http://www.w3.org/2000/svg" class="hidden">
+  <symbol id="ic-sat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/>
+  </symbol>
+  <symbol id="ic-mountain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+  </symbol>
+  <symbol id="ic-gem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>
+  </symbol>
+  <symbol id="ic-wind" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
+  </symbol>
+  <symbol id="ic-flask" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.52 16h12.96"/>
+  </symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+  </symbol>
+  <symbol id="ic-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+  </symbol>
+  <symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+  </symbol>
+  <symbol id="ic-db" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>
+  </symbol>
+  <symbol id="ic-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3z"/>
+  </symbol>
+  <symbol id="ic-drop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+  </symbol>
+  <symbol id="ic-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+  </symbol>
+  <symbol id="ic-temp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>
+  </symbol>
+  <symbol id="ic-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+  </symbol>
+  <symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>
+  </symbol>
+  <symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/>
+  </symbol>
+</svg>
+
+<!-- ======================================================================== -->
+<!-- SCREEN 1: CINEMATIC HERO & PLANETARY OVERVIEW                            -->
+<!-- ======================================================================== -->
+<div id="screen1">
+<div class="relative w-full overflow-hidden border-b border-white/10">
+
+  <div id="heroBgDefault" class="hero-bg-layer absolute inset-0 bg-cover bg-center opacity-100"
+       style="background-image: linear-gradient(90deg, rgba(5,6,15,0.95) 0%, rgba(5,6,15,0.72) 45%, rgba(5,6,15,0.22) 100%), linear-gradient(0deg, #05060f 2%, transparent 35%), url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=70');"></div>
+  <div id="heroBgMars" data-img="https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&w=1600&q=70" class="hero-bg-layer absolute inset-0 bg-cover bg-center opacity-0 pointer-events-none"
+       style="background-image: linear-gradient(90deg, rgba(5,6,15,0.95) 0%, rgba(5,6,15,0.65) 45%, rgba(5,6,15,0.15) 100%), linear-gradient(0deg, #05060f 2%, transparent 35%);"></div>
+  <div id="heroBgMoon" data-img="https://images.unsplash.com/photo-1522030299830-16b8d3d049fe?auto=format&fit=crop&w=1600&q=70" class="hero-bg-layer absolute inset-0 bg-cover bg-center opacity-0 pointer-events-none"
+       style="background-image: linear-gradient(90deg, rgba(5,6,15,0.95) 0%, rgba(5,6,15,0.65) 45%, rgba(5,6,15,0.15) 100%), linear-gradient(0deg, #05060f 2%, transparent 35%);"></div>
+
+  <header class="relative z-40 max-w-7xl mx-auto px-4 sm:px-8 pt-4 sm:pt-6">
+    <div class="flex items-center justify-between gap-4 py-2">
+      <a href="#" onclick="setHeroSlide('default'); return false;" class="flex items-center gap-3 group">
+        <div class="relative w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center">
+          <svg viewBox="0 0 64 64" class="w-full h-full drop-shadow-[0_0_12px_rgba(99,91,255,0.55)]" fill="none">
+            <defs>
+              <linearGradient id="orbGrad" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#38bdf8"/>
+                <stop offset="55%" stop-color="#635bff"/>
+                <stop offset="100%" stop-color="#f97316"/>
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="32" r="26" stroke="url(#orbGrad)" stroke-width="2.2" stroke-dasharray="110 18"/>
+            <circle cx="32" cy="32" r="14" fill="#0b0f24" stroke="#818cf8" stroke-width="1.8"/>
+            <ellipse cx="32" cy="32" rx="6.5" ry="14" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.8"/>
+            <line x1="18" y1="32" x2="46" y2="32" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.8"/>
+            <ellipse cx="32" cy="32" rx="28" ry="10" transform="rotate(-28 32 32)" stroke="#ffffff" stroke-width="1.6" stroke-opacity="0.9"/>
+            <circle cx="53" cy="21" r="3.4" fill="#f97316" stroke="#ffffff" stroke-width="1.2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="font-display font-bold tracking-[0.14em] text-sm sm:text-base text-white flex items-center gap-1.5">
+            ORBITA<span class="text-indigo-400">GIS</span>
+          </div>
+          <div class="text-[9px] sm:text-[10px] tracking-[0.2em] text-slate-400 uppercase" data-i="subtitle">Planetary Analog System</div>
+        </div>
+      </a>
+
+      <nav class="hidden lg:flex items-center gap-5 text-[13px] font-medium text-slate-300">
+        <button onclick="setHeroSlide('default')" data-nav="default" class="nav-link-item active text-white hover:text-white transition cursor-pointer" data-i="navHome">Главная</button>
+        <button onclick="setHeroSlide('mars')" data-nav="mars" class="nav-link-item hover:text-white transition cursor-pointer" data-i="navMars">Марс</button>
+        <button onclick="setHeroSlide('moon')" data-nav="moon" class="nav-link-item hover:text-white transition cursor-pointer" data-i="navMoon">Луна</button>
+        <a href="#explorer" class="nav-link-item hover:text-white transition" data-i="navExplorer">NASA Карты</a>
+        <a href="#finder" class="nav-link-item hover:text-white transition" data-i="navFinder">Поиск + Новые места</a>
+        <a href="#processes" class="nav-link-item hover:text-white transition" data-i="navProcesses">Процессы и Среда</a>
+        <a href="#telemetry" class="nav-link-item hover:text-white transition" data-i="navTelemetry">Сравнение</a>
+        <a href="#database" class="nav-link-item hover:text-white transition" data-i="navDb">База</a>
+        <a href="#games" class="nav-link-item text-orange-300 hover:text-orange-200 transition inline-flex items-center gap-1">
+          <svg class="ui-icon"><use href="#ic-gamepad"/></svg>
+          <span data-i="navGames">Игры (2)</span>
+        </a>
+      </nav>
+
+      <div class="flex items-center gap-2.5">
+        <button id="langBtn" class="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-indigo-600/40 border border-white/15 text-xs font-semibold text-white transition cursor-pointer flex items-center gap-1.5">
+          <svg class="ui-icon text-indigo-300"><use href="#ic-globe"/></svg>
+          <span id="langLabel">RU</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="relative z-30 max-w-7xl mx-auto px-4 sm:px-8 pt-6 pb-8 sm:pt-10 sm:pb-12">
+    <div id="heroContentDefault" class="block">
+      <div class="max-w-2xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-[11px] font-semibold tracking-wider uppercase mb-4">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span data-i="heroBadge">NASA Trek · Google Earth · Macrostrat · Live Wind · Многофакторная ГИС</span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl lg:text-[54px] font-bold tracking-tight leading-[1.08] text-white" data-i="heroTitle">
+          Планеты, процессы<br>и новые аналоги Земли
+        </h1>
+        <p class="text-slate-300 text-sm sm:text-base lg:text-[17px] leading-relaxed mt-4 max-w-xl font-normal" data-i="heroDesc">
+          Анализируйте рельеф, геологию, минералогию, состав грунтов, потоки ветра в реальном времени, пылевые бури, движение льдов, вулканизм и открывайте ранее неизученные территории.
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3.5 mt-7">
+          <a href="#explorer" class="px-6 py-3.5 rounded-full bg-[#635bff] hover:bg-[#5249f5] text-white text-xs sm:text-sm font-semibold shadow-[0_8px_28px_rgba(99,91,255,0.45)] transition inline-flex items-center gap-2.5">
+            <span data-i="btnMaps">Открыть карты NASA и Google</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+          <a href="#finder" class="px-5 py-3.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm font-semibold transition inline-flex items-center gap-2">
+            <svg class="ui-icon text-emerald-300"><use href="#ic-sparkle"/></svg>
+            <span data-i="btnDiscoverHero">Поиск и открытие новых мест</span>
+          </a>
+          <a href="#games" class="px-5 py-3.5 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-400/40 text-orange-200 text-xs sm:text-sm font-semibold transition inline-flex items-center gap-2">
+            <svg class="ui-icon text-orange-300"><use href="#ic-gamepad"/></svg>
+            <span data-i="btnGamesHero">3D Симуляторы и игры</span>
+          </a>
+          <button id="randomMissionBtn" class="px-5 py-3.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-slate-100 text-xs sm:text-sm font-medium transition cursor-pointer inline-flex items-center gap-2">
+            <span data-i="btnRandom">Случайная экспедиция</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="hidden lg:grid grid-cols-3 gap-5 mt-12">
+        <div onclick="setHeroSlide('mars')" class="glass-card rounded-2xl p-4 flex items-center justify-between cursor-pointer group">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 planet-3d planet-mars group-hover:scale-105 transition duration-500"></div>
+            <div>
+              <div class="font-display font-bold text-base text-white" data-i="cardMarsTitle">Марс · NASA Trek / MOLA / Viking</div>
+              <div class="text-xs text-slate-400 mt-0.5" data-i="cardMarsSub">Пылевые бури, перхлораты, палеозёра</div>
+            </div>
+          </div>
+          <div class="w-8 h-8 rounded-full border border-white/15 flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition">→</div>
+        </div>
+
+        <div onclick="setHeroSlide('moon')" class="glass-card rounded-2xl p-4 flex items-center justify-between cursor-pointer group">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 planet-3d planet-moon group-hover:scale-105 transition duration-500"></div>
+            <div>
+              <div class="font-display font-bold text-base text-white" data-i="cardMoonTitle">Луна · NASA LRO WAC / LOLA</div>
+              <div class="text-xs text-slate-400 mt-0.5" data-i="cardMoonSub">Ильменит, анортозит, вечная тень (PSR)</div>
+            </div>
+          </div>
+          <div class="w-8 h-8 rounded-full border border-white/15 flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition">→</div>
+        </div>
+
+        <a href="#games" class="glass-card rounded-2xl p-4 flex items-center justify-between cursor-pointer group">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-2xl border border-orange-400/30 bg-gradient-to-br from-orange-950 to-slate-900 grid place-items-center text-orange-300">
+              <svg class="ui-icon-lg"><use href="#ic-gamepad"/></svg>
+            </div>
+            <div>
+              <div class="font-display font-bold text-base text-white" data-i="cardGamesTitle">3D Космические симуляторы</div>
+              <div class="text-xs text-slate-400 mt-0.5" data-i="cardGamesSub">Solar Frontier HD & Orbital Works</div>
+            </div>
+          </div>
+          <div class="w-8 h-8 rounded-full border border-white/15 flex items-center justify-center text-slate-300 group-hover:bg-orange-600 group-hover:text-white transition">→</div>
+        </a>
+      </div>
+    </div>
+
+    <div id="heroContentMars" class="hidden py-2 sm:py-6">
+      <div class="max-w-xl">
+        <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-medium text-slate-200 mb-4">
+          <span class="w-3.5 h-3.5 planet-3d planet-mars"></span>
+          <span data-i="marsSlideTag">Планета · NASA Mars Trek / MRO HiRISE / MOLA</span>
+        </span>
+        <h2 class="text-4xl sm:text-6xl font-bold tracking-tight text-white" data-i="navMars">Марс</h2>
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed mt-4" data-i="marsSlideDesc">
+          Динамичный мир глобальных пылевых бурь, сезонной сублимации полярного льда CO₂/H₂O, древних флювиальных дельт и базальтовых вулканов с высоким содержанием оксидов железа, сульфатов и перхлоратов.
+        </p>
+        <div class="flex flex-wrap gap-3 mt-8">
+          <button onclick="openPlanetOnMap('mars')" class="px-6 py-3.5 rounded-full bg-[#635bff] hover:bg-[#5249f5] text-white text-xs sm:text-sm font-semibold cursor-pointer" data-i="btnOpenMars">Открыть слои NASA для Марса →</button>
+          <button onclick="setHeroSlide('default')" class="px-5 py-3.5 rounded-full bg-white/10 border border-white/15 text-xs sm:text-sm text-white cursor-pointer" data-i="btnBack">← Назад</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="heroContentMoon" class="hidden py-2 sm:py-6">
+      <div class="max-w-xl">
+        <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-medium text-slate-200 mb-4">
+          <span class="w-3.5 h-3.5 planet-3d planet-moon"></span>
+          <span data-i="moonSlideTag">Спутник · NASA Moon Trek / LRO WAC / LOLA</span>
+        </span>
+        <h2 class="text-4xl sm:text-6xl font-bold tracking-tight text-white" data-i="navMoon">Луна</h2>
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed mt-4" data-i="moonSlideDesc">
+          Безвоздушное тело, эволюционирующее за счёт ударного перемалывания реголита, экстремальных термических циклов и криогенных ловушек водяного льда в полярных кратерах.
+        </p>
+        <div class="flex flex-wrap gap-3 mt-8">
+          <button onclick="openPlanetOnMap('moon')" class="px-6 py-3.5 rounded-full bg-[#635bff] hover:bg-[#5249f5] text-white text-xs sm:text-sm font-semibold cursor-pointer" data-i="btnOpenMoon">Открыть слои NASA для Луны →</button>
+          <button onclick="setHeroSlide('default')" class="px-5 py-3.5 rounded-full bg-white/10 border border-white/15 text-xs sm:text-sm text-white cursor-pointer" data-i="btnBack">← Назад</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ======================================================================== -->
+<!-- SCREEN 2: MULTI-LAYER MAPS, DISCOVERY ENGINE, PROCESSES, DB & GAMES HUB  -->
+<!-- ======================================================================== -->
+<div id="screen2" class="hidden">
+  <div id="topBar" class="sticky top-0 z-[2000] glass border-b border-white/10" style="transition:transform .3s ease">
+    <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 flex items-center gap-2 md:gap-4">
+      <button onclick="showScreen(1)" class="shrink-0 h-8 md:h-9 px-3 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer">
+        ← <span class="hidden sm:inline" data-i="barHome">На главную</span>
+      </button>
+      <div class="hidden lg:block shrink-0 font-display font-bold tracking-[0.14em] text-sm text-white">ORBITA<span class="text-indigo-400">GIS</span></div>
+      <div id="tabStrip" class="flex gap-1.5 md:gap-2 overflow-x-auto flex-1 min-w-0 md:justify-center" role="tablist">
+        <button role="tab" data-tab="explorer" onclick="showTab('explorer')" class="tab-btn active shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-300 hover:text-white transition cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-sat"/></svg><span data-i="tabMaps">NASA и Google Карты</span>
+        </button>
+        <button role="tab" data-tab="finder" onclick="showTab('finder')" class="tab-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-300 hover:text-white transition cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-compass"/></svg><span data-i="tabFinder">Поиск + Новые места</span>
+        </button>
+        <button role="tab" data-tab="processes" onclick="showTab('processes')" class="tab-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-300 hover:text-white transition cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-wind"/></svg><span data-i="tabProc">Процессы и Среда</span>
+        </button>
+        <button role="tab" data-tab="telemetry" onclick="showTab('telemetry')" class="tab-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-300 hover:text-white transition cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-chart"/></svg><span data-i="tabComp">Сравнение планет</span>
+        </button>
+        <button role="tab" data-tab="database" onclick="showTab('database')" class="tab-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-300 hover:text-white transition cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-db"/></svg><span data-i="tabDb">Реестр аналогов</span>
+        </button>
+        <button role="tab" data-tab="games" onclick="showTab('games')" class="tab-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-orange-500/30 bg-orange-500/10 text-orange-200 hover:text-white transition cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-gamepad"/></svg><span data-i="tabGames">Игры и симуляторы</span>
+        </button>
+      </div>
+      <button id="langBtn2" class="shrink-0 h-8 md:h-9 px-3 rounded-full bg-white/10 hover:bg-indigo-600/40 border border-white/15 text-xs font-semibold text-white cursor-pointer inline-flex items-center gap-1.5">
+        <svg class="ui-icon text-indigo-300"><use href="#ic-globe"/></svg>
+        <span id="langLabel2">RU</span>
+      </button>
+    </div>
+  </div>
+
+<div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6">
+
+  <!-- TAB 1: MULTI-FORMAT NASA / GOOGLE / MACROSTRAT PLANETARY MAPS -->
+  <section id="explorer" class="mt-2">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+      <div>
+        <div class="text-xs font-semibold tracking-widest text-indigo-400 uppercase" data-i="mapEyebrow">NASA Trek · NASA GIBS · Google Earth · Macrostrat Geology</div>
+        <h2 class="text-2xl sm:text-3xl font-bold mt-1" data-i="mapTitle">Орбитальные карты высокого разрешения и реальные потоки</h2>
+        <p class="text-slate-400 text-xs sm:text-sm mt-1" data-i="mapSub">
+          Переключайте планеты и слои: снимки Google/NASA, рельеф MOLA/LOLA/SRTM, геологию Macrostrat/USGS, живые ветровые потоки (Windy-режим), грунт и ИК-карты.
+        </p>
+      </div>
+
+      <div class="inline-flex p-1.5 rounded-2xl bg-slate-900/95 border border-slate-800 self-start gap-1">
+        <button data-planet="earth" class="planet-tab active px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition cursor-pointer bg-indigo-600 text-white">
+          <span class="w-4 h-4 planet-3d planet-earth"></span>
+          <span data-i="pEarth">Земля (Google / NASA)</span>
+        </button>
+        <button data-planet="mars" class="planet-tab px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition cursor-pointer text-slate-300 hover:text-white">
+          <span class="w-4 h-4 planet-3d planet-mars"></span>
+          <span data-i="pMars">Марс (NASA Trek / USGS)</span>
+        </button>
+        <button data-planet="moon" class="planet-tab px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition cursor-pointer text-slate-300 hover:text-white">
+          <span class="w-4 h-4 planet-3d planet-moon"></span>
+          <span data-i="pMoon">Луна (NASA LRO)</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card-grad rounded-2xl p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-1.5" id="themeModeButtons">
+        <span class="text-[11px] font-semibold text-slate-400 mr-1 uppercase" data-i="layerFormatLabel">Формат слоя:</span>
+        <button data-theme="visual" class="theme-btn active px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-sat"/></svg><span data-i="tVisual">Спутник / Мозаика</span>
+        </button>
+        <button data-theme="relief" class="theme-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-700 cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-mountain"/></svg><span data-i="tRelief">Рельеф (DEM / MOLA / LOLA)</span>
+        </button>
+        <button data-theme="geology" class="theme-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-700 cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-gem"/></svg><span data-i="tGeology">Геология и Минералы</span>
+        </button>
+        <button data-theme="wind" class="theme-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-700 cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-wind"/></svg><span data-i="tWind">Ветры (Live Потоки)</span>
+        </button>
+        <button data-theme="soil" class="theme-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-700 cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-flask"/></svg><span data-i="tSoil">Грунт / Влажность / Лёд</span>
+        </button>
+        <button data-theme="illum" class="theme-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-700 cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="ui-icon"><use href="#ic-sun"/></svg><span data-i="tIllum">Освещённость / ИК</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-2" id="windToggleWrapper">
+        <label class="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+          <input type="checkbox" id="windVectorsToggle" checked class="rounded accent-indigo-500">
+          <span data-i="windVectorsLabel">Маркеры розы ветров</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div class="lg:col-span-8 card-grad rounded-2xl overflow-hidden flex flex-col">
+        <div class="px-4 py-2.5 border-b border-slate-800/90 flex flex-wrap items-center justify-between gap-2 bg-slate-950/60">
+          <div class="flex items-center gap-2">
+            <span id="activeMapBadge" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">EARTH · GOOGLE / NASA</span>
+            <span id="cursorCoords" class="mono text-[11px] text-slate-400">0.00°, 0.00°</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="specificLayerSelect" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 max-w-[320px]"></select>
+          </div>
+        </div>
+
+        <div id="mapWrapper" class="relative w-full h-[460px] sm:h-[520px]">
+          <div id="mainMap" class="w-full h-full z-10"></div>
+          <canvas id="windParticleCanvas" class="hidden"></canvas>
+          <div id="windColorBar" class="hidden absolute top-3 right-3 z-[500] map-overlay rounded-xl px-3 py-2 text-[10px] text-slate-200 pointer-events-none">
+            <div class="font-semibold text-sky-300 mb-1">LIVE WIND STREAMLINES (GFS / ECMWF)</div>
+            <div class="h-2 w-40 rounded-full" style="background: linear-gradient(90deg, #3b82f6 0%, #10b981 35%, #eab308 65%, #ef4444 85%, #a855f7 100%);"></div>
+            <div class="flex justify-between mono text-[9px] text-slate-300 mt-0.5">
+              <span>0</span><span>15</span><span>30</span><span>50</span><span>75+ km/h</span>
+            </div>
+          </div>
+          <div id="mapLegendBox" class="absolute bottom-3 left-3 z-[500] map-overlay rounded-xl px-3 py-2 text-[11px] text-slate-200 max-w-xs pointer-events-none">
+            <div class="font-semibold text-indigo-300" id="legendTitle">Google Earth Satellite</div>
+            <div class="text-slate-400 text-[10px] mt-0.5" id="legendDesc">Спутниковая съёмка сверхвысокого разрешения.</div>
+          </div>
+        </div>
+
+        <div class="px-4 py-2.5 bg-slate-950/70 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+          <span id="mapHintText" data-i="mapHint">Кликните в любую точку планеты для извлечения высоты, геологии, состава грунта, ветра и поиска аналогов.</span>
+          <div class="flex items-center gap-3">
+            <a id="externalNasaLink" href="https://worldview.earthdata.nasa.gov/" target="_blank" rel="noopener" class="text-indigo-300 hover:text-indigo-200 underline">NASA Worldview ↗</a>
+            <a id="externalGoogleLink" href="https://earth.google.com/web/" target="_blank" rel="noopener" class="text-sky-300 hover:text-sky-200 underline">Google Earth ↗</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- INSPECTOR SIDEBAR -->
+      <div class="lg:col-span-4 card-grad rounded-2xl p-4 sm:p-5 flex flex-col justify-between max-h-[660px] overflow-y-auto">
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-indigo-400" data-i="inspHeader">Интегрированный инспектор территории</span>
+            <span id="inspectorLoading" class="hidden text-[11px] text-amber-300 animate-pulse" data-i="syncing">Синхронизация API...</span>
+          </div>
+
+          <h3 id="selectedTargetName" class="text-lg font-bold text-white mt-1.5">Пустыня Атакама (Юнгай), Чили</h3>
+          <div id="selectedTargetCoords" class="mono text-xs text-indigo-300 mt-0.5">-24.08°, -69.91° · MARS ANALOG</div>
+          <p id="selectedTargetDesc" class="text-xs text-slate-300 leading-relaxed mt-2">
+            Эталонный полигон NASA для тестирования марсоходов и приборов поиска биосигнатур.
+          </p>
+
+          <div class="mt-3 pt-3 border-t border-slate-800">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-semibold text-slate-200 uppercase" data-i="envComplexHeader">Комплексное наблюдение среды</span>
+              <span id="liveDataTimestamp" class="text-[10px] mono text-emerald-400">LIVE + NASA</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div class="text-[10px] text-slate-400 flex items-center gap-1"><svg class="ui-icon text-indigo-400"><use href="#ic-mountain"/></svg><span data-i="lblRelief">Рельеф / Уклон</span></div>
+                <div id="liveElev" class="mono text-xs font-semibold text-white mt-0.5">1 020 м · 4°</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div class="text-[10px] text-slate-400 flex items-center gap-1"><svg class="ui-icon text-sky-400"><use href="#ic-temp"/></svg><span data-i="lblTemp">Температура</span></div>
+                <div id="liveTemp" class="mono text-xs font-semibold text-sky-300 mt-0.5">18.4 °C</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div class="text-[10px] text-slate-400 flex items-center gap-1"><svg class="ui-icon text-emerald-400"><use href="#ic-leaf"/></svg><span data-i="lblVeg">Растительность / Био</span></div>
+                <div id="liveVeg" class="mono text-xs font-semibold text-emerald-300 mt-0.5">NDVI 0.02 (Криптоэндолиты)</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div class="text-[10px] text-slate-400 flex items-center gap-1"><svg class="ui-icon text-cyan-400"><use href="#ic-drop"/></svg><span data-i="lblWater">Вода / Лёд</span></div>
+                <div id="liveWater" class="mono text-xs font-semibold text-cyan-300 mt-0.5">Гидратир. сульфаты (1.2%)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2">
+            <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase flex items-center gap-1"><svg class="ui-icon text-amber-300"><use href="#ic-gem"/></svg><span data-i="lblMinerals">Полезные ископаемые и минералы</span></div>
+              <div id="liveMinerals" class="text-xs font-medium text-amber-200 mt-0.5">Нитраты, сульфаты (гипс), перхлораты, медь, литий</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase flex items-center gap-1"><svg class="ui-icon text-sky-300"><use href="#ic-flask"/></svg><span data-i="lblSoil">Состав грунта / реголита</span></div>
+              <div id="liveSoilComp" class="text-xs font-medium text-slate-200 mt-0.5">SiO₂ 54%, Fe₂O₃ 9.5%, SO₃ 11%, ClO₄⁻ 0.6%, органика &lt;0.01%</div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div class="text-[10px] text-slate-400 flex items-center gap-1"><svg class="ui-icon text-amber-300"><use href="#ic-wind"/></svg><span data-i="lblWind">Ветер (напр. / ск.)</span></div>
+                <div id="liveWind" class="mono text-xs font-semibold text-amber-300 mt-0.5">ЮЗ (225°) · 16 км/ч</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div class="text-[10px] text-slate-400 flex items-center gap-1"><svg class="ui-icon text-orange-400"><use href="#ic-flame"/></svg><span data-i="lblProc">Активный процесс</span></div>
+                <div id="liveProcess" class="text-xs font-semibold text-orange-300 mt-0.5">Эоловая дефляция</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-slate-800">
+            <div class="text-[11px] font-semibold text-slate-300 mb-1.5" data-i="keyPointsTitle">Ключевые точки текущего мира:</div>
+            <div id="planetPresetsList" class="flex flex-wrap gap-1.5"></div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 flex flex-col gap-2">
+          <button id="syncParamsFromTargetBtn" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition cursor-pointer inline-flex items-center justify-center gap-1.5">
+            <svg class="ui-icon"><use href="#ic-compass"/></svg><span data-i="btnMatchTarget">Подобрать известные и НОВЫЕ аналоги</span>
+          </button>
+          <button id="aiAnalyzeBtn" class="w-full py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition cursor-pointer inline-flex items-center justify-center gap-1.5">
+            <svg class="ui-icon text-indigo-400"><use href="#ic-sparkle"/></svg><span data-i="btnAiBrief">AI-заключение по геологии, ресурсам и процессам</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="aiBriefBox" class="hidden mt-4 card-grad rounded-2xl p-5 border-indigo-500/40">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold text-indigo-300 uppercase tracking-wider inline-flex items-center gap-1.5">
+          <svg class="ui-icon text-indigo-400"><use href="#ic-sparkle"/></svg>
+          <span data-i="aiReportTitle">Научное заключение ИИ-планетолога</span>
+        </span>
+        <button onclick="document.getElementById('aiBriefBox').classList.add('hidden')" class="text-slate-400 hover:text-white text-xs cursor-pointer">✕</button>
+      </div>
+      <div id="aiBriefContent" class="text-xs sm:text-sm text-slate-200 leading-relaxed space-y-2"></div>
+    </div>
+
+    <div class="mt-5 card-grad rounded-2xl p-4">
+      <div class="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-3" data-i="portalsTitle">Подключённые научные и картографические источники NASA и Google</div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
+        <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-orange-500/50 transition">
+          <div class="font-bold text-orange-300">NASA Mars Trek</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">MOLA, Viking, HiRISE, THEMIS</div>
+        </a>
+        <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-400/50 transition">
+          <div class="font-bold text-slate-200">NASA Moon Trek</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">LRO WAC, LOLA DEM, Clementine</div>
+        </a>
+        <a href="https://worldview.earthdata.nasa.gov/" target="_blank" rel="noopener" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-sky-500/50 transition">
+          <div class="font-bold text-sky-300">NASA Worldview / GIBS</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">VIIRS, MODIS LST, NDVI, AOD</div>
+        </a>
+        <a href="https://earth.google.com/web/" target="_blank" rel="noopener" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-emerald-500/50 transition">
+          <div class="font-bold text-emerald-300">Google Earth & Mars</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">High-Res Satellite & Terrain</div>
+        </a>
+        <a href="https://macrostrat.org/map/" target="_blank" rel="noopener" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-indigo-500/50 transition">
+          <div class="font-bold text-indigo-300">Macrostrat / USGS</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">Global Lithology & Strata</div>
+        </a>
+        <a href="https://pds.nasa.gov/" target="_blank" rel="noopener" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-amber-500/50 transition">
+          <div class="font-bold text-amber-300">NASA PDS & Astrogeology</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">CRISM, GRS, USGS Planetary</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: MULTI-FACTOR SEARCH & DISCOVERY -->
+  <section id="finder" class="mt-8">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-5">
+      <div>
+        <div class="text-xs font-semibold tracking-widest text-indigo-400 uppercase" data-i="finderEyebrow">Расширенный поиск + Алгоритм открытия новых локаций</div>
+        <h2 class="text-2xl sm:text-3xl font-bold mt-1" data-i="finderTitle">Подбор территорий и поиск ранее неизученных мест</h2>
+        <p class="text-slate-400 text-xs sm:text-sm mt-1" data-i="finderSub">
+          Фильтруйте по минералам, составу грунта, направлению ветра, растительности, воде/льду и динамическим процессам. Нажмите «Открыть новую территорию» для поиска малоизученных кандидатов.
+        </p>
+      </div>
+      <span id="matchCounterBadge" class="px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold self-start">
+        14 ТЕРРИТОРИЙ В РЕЕСТРЕ
+      </span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <aside class="lg:col-span-4 card-grad rounded-2xl p-5 space-y-3.5">
+        <h3 class="font-bold text-base border-b border-slate-800 pb-2" data-i="filterPanelTitle">Параметры поиска территории</h3>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] text-slate-300 mb-1" data-i="fWorldLbl">Целевой мир</label>
+            <select id="world" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white">
+              <option value="all" data-i="optAllWorlds">Все (Марс + Луна)</option>
+              <option value="mars" data-i="navMars">Марс</option>
+              <option value="moon" data-i="navMoon">Луна</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-300 mb-1" data-i="fNovLbl">Статус изученности</label>
+            <select id="noveltyFilter" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white">
+              <option value="all" data-i="optNovAll">Все территории</option>
+              <option value="new" data-i="optNovNew">Новые / Неизученные</option>
+              <option value="classic" data-i="optNovOld">Классические полигоны</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] text-slate-300 mb-1" data-i="fMinLbl">Полезные ископаемые / Руды</label>
+          <select id="mineralFilter" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+            <option value="any" data-i="optAnyMin">Любые минералы</option>
+            <option value="iron_sulfates" data-i="optMinIron">Оксиды железа, пирит, сульфаты, ярозит</option>
+            <option value="titanium_basalt" data-i="optMinTi">Ильменит (титан), базальты, оливин</option>
+            <option value="salts_lithium" data-i="optMinSalt">Соли, литий, гипс, перхлораты</option>
+            <option value="water_ice" data-i="optMinIce">Водяной лёд, газогидраты, рассолы</option>
+            <option value="anorthosite_ree" data-i="optMinAnor">Анортозит, редкие земли, карбонаты</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] text-slate-300 mb-1" data-i="fSoilLbl">Состав грунта / реголита</label>
+          <select id="soilFilter" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+            <option value="any" data-i="optAnySoil">Любой состав грунта</option>
+            <option value="perchlorate" data-i="optSoilPer">Сульфатно-перхлоратный (без органики)</option>
+            <option value="basalt_tephra" data-i="optSoilBas">Базальтовая тефра и вулканический шлак</option>
+            <option value="permafrost" data-i="optSoilPerm">Вечная мерзлота и криогенный грунт</option>
+            <option value="evaporite" data-i="optSoilEvap">Солончаково-эвапоритовая корка</option>
+            <option value="anorthosite" data-i="optSoilAnor">Светлый анортозитовый / карбонатный</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] text-slate-300 mb-1" data-i="fProcLbl">Доминирующий динамический процесс</label>
+          <select id="processFilter" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+            <option value="any" data-i="optAnyProc">Любой динамический процесс</option>
+            <option value="dust_erosion" data-i="optProcDust">Пылевые бури и эоловая эрозия (ярданги)</option>
+            <option value="volcanism" data-i="optProcVolc">Вулканическая активность и лавовые трубки</option>
+            <option value="ice_dynamics" data-i="optProcIce">Движение льдов, сублимация и подлёдные воды</option>
+            <option value="fluvial_brine" data-i="optProcWater">Водные изменения, пересыхание озёр, рассолы</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] text-slate-300 mb-1" data-i="fWindDirLbl">Направление ветра</label>
+            <select id="windDirFilter" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white">
+              <option value="any" data-i="optAnyDir">Любое</option>
+              <option value="N">N / NW / NE</option>
+              <option value="S">S / SW / SE</option>
+              <option value="W">W</option>
+              <option value="E">E</option>
+              <option value="CALM">Calm / Vacuum</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-300 mb-1" data-i="fBioLbl">Растительность / Вода</label>
+            <select id="bioWaterFilter" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white">
+              <option value="any" data-i="optAnyBio">Любой профиль</option>
+              <option value="hyperarid_no_veg" data-i="optBioArid">Без растительности, сухо</option>
+              <option value="cryo_ice" data-i="optBioIce">Лёд / криптоэндолиты</option>
+              <option value="brine_extremophile" data-i="optBioBrine">Рассолы / экстремофилы</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="flex justify-between text-[11px] text-slate-300 mb-1">
+            <span data-i="fElevLbl">Высота над уровнем моря</span>
+            <output id="elevOut" class="mono text-indigo-300 font-semibold">1500 м</output>
+          </label>
+          <input id="elev" type="range" min="0" max="5000" step="100" value="1500" class="w-full">
+        </div>
+
+        <div>
+          <label class="flex justify-between text-[11px] text-slate-300 mb-1">
+            <span data-i="fWindSpdLbl">Скорость ветра</span>
+            <output id="windOut" class="mono text-indigo-300 font-semibold">20 км/ч</output>
+          </label>
+          <input id="wind" type="range" min="0" max="60" value="20" class="w-full">
+        </div>
+
+        <div class="pt-2 flex flex-col gap-2">
+          <button id="searchBtn" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold transition cursor-pointer" data-i="btnCalcScore">
+            Рассчитать многофакторный индекс
+          </button>
+          <button id="discoverNewBtn" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-400/50 text-emerald-200 text-xs font-semibold transition cursor-pointer inline-flex items-center justify-center gap-1.5">
+            <svg class="ui-icon text-emerald-300"><use href="#ic-sparkle"/></svg>
+            <span data-i="btnDiscover">Открыть новую неизученную территорию</span>
+          </button>
+          <button id="resetBtn" class="w-full py-2 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium transition cursor-pointer" data-i="btnReset">
+            Сбросить фильтры
+          </button>
+        </div>
+      </aside>
+
+      <div class="lg:col-span-8 space-y-4">
+        <div id="discoveryBanner" class="hidden card-grad rounded-2xl p-4 border-emerald-500/50 bg-emerald-950/20">
+          <div class="flex items-center justify-between gap-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase" data-i="newAddedBanner">Новый кандидат добавлен в каталог и на карту</span>
+            <button onclick="document.getElementById('discoveryBanner').classList.add('hidden')" class="text-slate-400 hover:text-white text-xs cursor-pointer">✕</button>
+          </div>
+          <div id="discoveryBannerBody" class="mt-2 text-xs text-slate-200"></div>
+        </div>
+
+        <div id="rankedResults" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: DYNAMIC PROCESSES -->
+  <section id="processes" class="mt-8 space-y-6">
+    <div>
+      <div class="text-xs font-semibold tracking-widest text-indigo-400 uppercase" data-i="procEyebrow">Динамическая планетология · Сравнение процессов</div>
+      <h2 class="text-2xl sm:text-3xl font-bold mt-1" data-i="procTitle">Сравнение активных процессов: Земля · Марс · Луна</h2>
+      <p class="text-slate-400 text-xs sm:text-sm mt-1 max-w-3xl" data-i="procSub">
+        Сопоставление геологических, атмосферных и криосферных процессов на планетах с прямыми полевыми аналогами на Земле.
+      </p>
+    </div>
+
+    <div id="processCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </section>
+
+  <!-- TAB 4: COMPARISON TABLE -->
+  <section id="telemetry" class="mt-8 card-grad rounded-2xl p-5 sm:p-7">
+    <div class="mb-5">
+      <div class="text-xs font-semibold tracking-widest text-indigo-400 uppercase" data-i="compEyebrow">NASA Planetary Fact Sheets & PDS</div>
+      <h2 class="text-xl sm:text-2xl font-bold mt-1" data-i="compTitle">Сравнение условий, минералов и процессов: Земля · Луна · Марс</h2>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs sm:text-sm">
+        <thead>
+          <tr class="border-b border-slate-800 text-slate-400 text-[11px] uppercase">
+            <th class="py-3 px-3" data-i="thFactor">Фактор / Процесс</th>
+            <th class="py-3 px-3 text-sky-300" data-i="thEarth">Земля (Эталон)</th>
+            <th class="py-3 px-3 text-slate-200" data-i="navMoon">Луна</th>
+            <th class="py-3 px-3 text-orange-400" data-i="navMars">Марс</th>
+            <th class="py-3 px-3" data-i="thEng">Инженерный вывод</th>
+          </tr>
+        </thead>
+        <tbody id="comparisonTableBody" class="divide-y divide-slate-800/70 text-slate-200"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- TAB 5: FULL DATABASE -->
+  <section id="database" class="mt-8">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5">
+      <div>
+        <div class="text-xs font-semibold tracking-widest text-indigo-400 uppercase" data-i="dbEyebrow">Международный и исследовательский реестр</div>
+        <h2 class="text-2xl sm:text-3xl font-bold mt-1" data-i="dbTitle">Каталог планетарных аналогов и новых кандидатов</h2>
+      </div>
+      <input id="dbSearchInput" type="text" data-i-placeholder="dbSearchPh" placeholder="Поиск по названию, минералу, процессу или миссии..."
+             class="bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white w-full sm:w-80 focus:outline-none focus:border-indigo-500">
+    </div>
+
+    <div id="fullCatalogGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </section>
+
+  <!-- TAB 6: GAMES & 3D SIMULATORS HUB (BOTH GAMES PRESERVED & CONNECTED) -->
+  <section id="games" class="mt-8 space-y-5">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-3">
+      <div>
+        <div class="text-xs font-semibold tracking-widest text-orange-400 uppercase" data-i="gamesEyebrow">Интерактивные 3D-тренажёры · 2 игры подключены</div>
+        <h2 class="text-2xl sm:text-3xl font-bold mt-1" data-i="gamesTitle">Космические симуляторы и тренировочные миссии</h2>
+        <p class="text-slate-400 text-xs sm:text-sm mt-1 max-w-3xl" data-i="gamesSub">
+          Переключайтесь между новой версией колонизации Луны и Марса (Solar Frontier 3D Simulator-2) и ракетно-орбитальным конструктором (Orbital Works) без потери прогресса.
+        </p>
+      </div>
+      <div class="flex items-center gap-2 text-[11px] mono text-slate-300 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl self-start">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="bridgeStatusText" data-i="bridgeReady">Обе игры готовы · Мост ORBITA-GIS активен</span>
+      </div>
+    </div>
+
+    <!-- Game Launcher Cards (Both Games Kept Side-by-Side) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Game 1: Solar Frontier 3D Simulator-2 (New Edition) -->
+      <div id="card-frontier" class="card-grad rounded-2xl p-5 border-sky-500/40 flex flex-col justify-between ring-2 ring-sky-500">
+        <div>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5">
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30">MOON & MARS PBR HD</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" data-i="badgeUpdated">ОБНОВЛЕНО v2</span>
+            </div>
+            <span class="mono text-[11px] text-slate-400">PBR Normal Maps · Mobile</span>
+          </div>
+          <h3 class="text-lg font-bold text-white mt-2.5">Solar Frontier 3D Simulator (HD & Mobile)</h3>
+          <p class="text-xs text-slate-300 leading-relaxed mt-1.5" data-i="game2Desc">
+            Выход на поверхность Луны и Марса, лазерная добыча ильменита и гематита, 3D-принтер, строительство базы, пылевые бури, автономные дроны и карта Солнечной системы.
+          </p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-2">
+          <button onclick="launchIntegratedGame('frontier')" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1.5">
+            <svg class="ui-icon"><use href="#ic-gamepad"/></svg>
+            <span data-i="btnPlayEmbedded">Запустить здесь</span>
+          </button>
+          <a id="extLinkFrontier" href="./Solar%20Frontier%203D%20Simulator-2.html" target="_blank" rel="noopener" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium transition">
+            <span data-i="btnOpenNewTab">В новой вкладке ↗</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Game 2: Orbital Works (Preserved Second Game) -->
+      <div id="card-orbital" class="card-grad rounded-2xl p-5 border-indigo-500/30 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-orange-500/20 text-orange-300 border border-orange-500/30">VAB & ORBITAL FLIGHT</span>
+            <span class="mono text-[11px] text-slate-400">Three.js · PID SAS</span>
+          </div>
+          <h3 class="text-lg font-bold text-white mt-2.5">Orbital Works — Rocket Assembly & Flight Simulator</h3>
+          <p class="text-xs text-slate-300 leading-relaxed mt-1.5" data-i="game1Desc">
+            Модульный конструктор ракет-носителей (VAB), расчёт TWR и Δv, опрос готовности GO/NO-GO, аэродинамика Max-Q и выход на орбиту Земли.
+          </p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-2">
+          <button onclick="launchIntegratedGame('orbital')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1.5">
+            <svg class="ui-icon"><use href="#ic-gamepad"/></svg>
+            <span data-i="btnPlayEmbedded">Запустить здесь</span>
+          </button>
+          <a id="extLinkOrbital" href="./Orbital%20Works%20(1).html" target="_blank" rel="noopener" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium transition">
+            <span data-i="btnOpenNewTab">В новой вкладке ↗</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Embedded Interactive Simulator Stage -->
+    <div id="gameStageCard" class="card-grad rounded-2xl overflow-hidden border-sky-500/30">
+      <div class="px-4 py-2.5 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="activeGameBadge" class="px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">SOLAR FRONTIER 3D</span>
+          <span id="activeGameFileLabel" class="mono text-[11px] text-slate-400">Solar Frontier 3D Simulator-2.html</span>
+          <!-- Quick Switcher directly on Stage -->
+          <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700 ml-1">
+            <button id="stageSwitchFrontier" onclick="launchIntegratedGame('frontier', false)" class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-600 text-white cursor-pointer">Solar Frontier 3D</button>
+            <button id="stageSwitchOrbital" onclick="launchIntegratedGame('orbital', false)" class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold text-slate-300 hover:text-white cursor-pointer">Orbital Works</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="syncContextToGame()" class="px-3 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 text-[11px] font-semibold cursor-pointer" data-i="btnSyncContext">
+            Передать контекст ГИС
+          </button>
+          <button onclick="reloadGameFrame()" class="px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-semibold cursor-pointer" data-i="btnReloadGame">
+            Перезапустить
+          </button>
+          <button id="fullscreenGameBtn" onclick="toggleGameFullscreen()" class="px-3 py-1 rounded-lg bg-indigo-600/25 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-200 hover:text-white text-[11px] font-semibold cursor-pointer" data-i="btnFullscreen">
+            На весь экран ⛶
+          </button>
+        </div>
+      </div>
+
+      <div id="gameViewport" class="relative w-full h-[560px] sm:h-[660px] bg-black">
+        <iframe id="gameFrame"
+                title="ORBITA-GIS Integrated Simulator"
+                class="w-full h-full border-0 block"
+                allow="fullscreen; autoplay; gamepad; pointer-lock"
+                loading="lazy"></iframe>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ============================================================================
+// 1. COMPREHENSIVE MULTI-FACTOR DATABASE (SITES, CANDIDATES, MARS, MOON)
+// ============================================================================
+const EARTH_SITES = [
+  {
+    id: 'atacama',
+    name: { ru: 'Пустыня Атакама (Юнгай), Чили', en: 'Atacama Desert (Yungay), Chile' },
+    lat: -24.08, lon: -69.91, elev: 1020, slope: 4, world: 'mars', isNew: false,
+    mineralCat: 'salts_lithium',
+    minerals: { ru: 'Нитраты, сульфаты (гипс), перхлораты, медь, литий', en: 'Nitrates, sulfates (gypsum), perchlorates, copper, lithium' },
+    soilCat: 'perchlorate',
+    soilComp: { ru: 'SiO₂ 54%, Fe₂O₃ 9.5%, SO₃ 11%, ClO₄⁻ 0.6%, органика <0.01%', en: 'SiO₂ 54%, Fe₂O₃ 9.5%, SO₃ 11%, ClO₄⁻ 0.6%, organics <0.01%' },
+    wind: 16, windDir: 'SW', windDirLabel: { ru: 'ЮЗ (225°)', en: 'SW (225°)' },
+    processCat: 'dust_erosion',
+    processDesc: { ru: 'Эоловая дефляция и солевое выветривание', en: 'Aeolian deflation & salt weathering' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'NDVI 0.02 (Криптоэндолиты в галите)', en: 'NDVI 0.02 (Halite cryptoendoliths)' },
+    waterIce: { ru: 'Гидратированные сульфаты (1.2% воды)', en: 'Hydrated sulfates (1.2% bound water)' },
+    missions: 'NASA Mars 2020, ExoMars, Viking Tests',
+    desc: { ru: 'Эталонный полигон NASA для тестирования марсоходов и приборов поиска биосигнатур.', en: 'Reference NASA testbed: hyper-arid desert with perchlorates and sulfates matching Martian regolith.' }
+  },
+  {
+    id: 'iceland',
+    name: { ru: 'Лавовые поля Холухраун, Исландия', en: 'Holuhraun Lava Fields, Iceland' },
+    lat: 64.87, lon: -16.83, elev: 760, slope: 11, world: 'moon', isNew: false,
+    mineralCat: 'titanium_basalt',
+    minerals: { ru: 'Титаномагнетит, плагиоклаз, пироксен, оливин, базальты', en: 'Titanomagnetite, plagioclase, pyroxene, olivine, basalts' },
+    soilCat: 'basalt_tephra',
+    soilComp: { ru: 'SiO₂ 49%, FeO 13.8%, TiO₂ 2.4%, MgO 7.1%, вулк. стекло', en: 'SiO₂ 49%, FeO 13.8%, TiO₂ 2.4%, MgO 7.1%, volcanic glass' },
+    wind: 29, windDir: 'N', windDirLabel: { ru: 'С (355°)', en: 'N (355°)' },
+    processCat: 'volcanism',
+    processDesc: { ru: 'Свежий базальтовый вулканизм, лавовые трубки и пылевые бури', en: 'Fresh basaltic volcanism, lava tubes & basaltic dust storms' },
+    bioWaterCat: 'cryo_ice',
+    veg: { ru: 'NDVI 0.04 (Лишайники на молодых лавах)', en: 'NDVI 0.04 (Pioneer lichens on lava)' },
+    waterIce: { ru: 'Подлёдные талые воды ледника Ватнайёкюдль', en: 'Subglacial meltwater from Vatnajökull' },
+    missions: 'Apollo Training, NASA SAND-E, ESA PANGAEA',
+    desc: { ru: 'Молодые базальтовые потоки и пепел — прямой аналог лунных морей и вулканических равнин Марса.', en: 'Young basaltic flows and ash — direct analog of lunar maria and Martian volcanic plains.' }
+  },
+  {
+    id: 'rio_tinto',
+    name: { ru: 'Рио-Тинто, Андалусия, Испания', en: 'Rio Tinto, Andalusia, Spain' },
+    lat: 37.70, lon: -6.55, elev: 420, slope: 12, world: 'mars', isNew: false,
+    mineralCat: 'iron_sulfates',
+    minerals: { ru: 'Пирит, гематит, гётит, ярозит, медные и железистые сульфаты', en: 'Pyrite, hematite, goethite, jarosite, iron/copper sulfates' },
+    soilCat: 'perchlorate',
+    soilComp: { ru: 'Fe₂O₃ 24%, SO₃ 15%, ярозит, кислая кора выветривания (pH 2)', en: 'Fe₂O₃ 24%, SO₃ 15%, jarosite, acidic weathering crust (pH 2)' },
+    wind: 14, windDir: 'W', windDirLabel: { ru: 'З (270°)', en: 'W (270°)' },
+    processCat: 'fluvial_brine',
+    processDesc: { ru: 'Кислотное выщелачивание пород и железо-серный цикл', en: 'Acidic rock leaching & iron-sulfur geochemical cycling' },
+    bioWaterCat: 'brine_extremophile',
+    veg: { ru: 'NDVI 0.11 (Хемолитоавтотрофные биоплёнки)', en: 'NDVI 0.11 (Chemolithoautotrophic biofilms)' },
+    waterIce: { ru: 'Кислый водоток (pH 1.8–2.5), насыщенный Fe³⁺', en: 'Acidic stream (pH 1.8–2.5) saturated with Fe³⁺' },
+    missions: 'ESA ExoMars, NASA Astrobiology',
+    desc: { ru: 'Кислая река с отложениями ярозита и гематита — геохимический аналог древнего влажного Марса.', en: 'Acidic river with jarosite and hematite deposits — geochemical analog of early wet Mars.' }
+  },
+  {
+    id: 'mauna_kea',
+    name: { ru: 'Вулкан Мауна-Кеа, Гавайи, США', en: 'Mauna Kea Volcano, Hawaii, USA' },
+    lat: 19.82, lon: -155.47, elev: 3200, slope: 14, world: 'moon', isNew: false,
+    mineralCat: 'titanium_basalt',
+    minerals: { ru: 'Ильменит (FeTiO₃), палагонит, оливин, плагиоклаз', en: 'Ilmenite (FeTiO₃), palagonite, olivine, plagioclase' },
+    soilCat: 'basalt_tephra',
+    soilComp: { ru: 'Палагонитовая тефра (основа симулянта JSC Mars-1 / LHS-1)', en: 'Palagonitic tephra (source for JSC Mars-1 / LHS-1 simulants)' },
+    wind: 22, windDir: 'E', windDirLabel: { ru: 'В (85°)', en: 'E (85°)' },
+    processCat: 'volcanism',
+    processDesc: { ru: 'Пирокластические конусы, разреженная атмосфера и ISRU-тесты', en: 'Pyroclastic cones, thin atmosphere & ISRU oxygen extraction' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'NDVI 0.03 (Высокогорная вулканическая пустошь)', en: 'NDVI 0.03 (High-altitude volcanic barren)' },
+    waterIce: { ru: 'Связанная влага в палагоните (3–5%), сезонный снег', en: 'Bound water in palagonite (3–5%), seasonal snow' },
+    missions: 'NASA PISCES, HI-SEAS, ISRU Oxygen Extraction',
+    desc: { ru: 'Высокогорные базальтовые шлаки, используемые NASA для отработки добычи кислорода из реголита.', en: 'High-altitude basaltic cinders used by NASA to test oxygen extraction from regolith.' }
+  },
+  {
+    id: 'mcmurdo',
+    name: { ru: 'Сухие долины Мак-Мердо, Антарктида', en: 'McMurdo Dry Valleys, Antarctica' },
+    lat: -77.47, lon: 162.52, elev: 650, slope: 16, world: 'mars', isNew: false,
+    mineralCat: 'water_ice',
+    minerals: { ru: 'Погребённый ледниковый лёд, хлориды, сульфаты, доломиты', en: 'Buried glacial ice, chlorides, sulfates, dolomites' },
+    soilCat: 'permafrost',
+    soilComp: { ru: 'Сухая криогенная почва поверх монолитной вечной мерзлоты', en: 'Dry cryogenic soil overlying massive permafrost' },
+    wind: 35, windDir: 'S', windDirLabel: { ru: 'Ю (185°)', en: 'S (185°)' },
+    processCat: 'ice_dynamics',
+    processDesc: { ru: 'Катабатические ветры, сублимация льда и криогенные полигоны', en: 'Katabatic winds, ice sublimation & thermal contraction polygons' },
+    bioWaterCat: 'cryo_ice',
+    veg: { ru: 'NDVI 0.01 (Подповерхностные криптоэндолиты)', en: 'NDVI 0.01 (Subsurface cryptoendoliths)' },
+    waterIce: { ru: 'Вечная мерзлота на глубине 10–30 см, ледник Тейлор', en: 'Permafrost at 10–30 cm depth, Taylor Glacier' },
+    missions: 'NASA Phoenix, Icebreaker Life',
+    desc: { ru: 'Самая холодная и сухая полярная пустыня Земли — прямой аналог высокоширотного Марса.', en: 'Coldest and driest polar desert on Earth — direct analog of high-latitude Mars.' }
+  },
+  {
+    id: 'lut',
+    name: { ru: 'Пустыня Дашт-е-Лут (ярданги Шахдада), Иран', en: 'Dasht-e Lut (Shahdad Yardangs), Iran' },
+    lat: 30.62, lon: 57.97, elev: 400, slope: 6, world: 'mars', isNew: true,
+    mineralCat: 'salts_lithium',
+    minerals: { ru: 'Галит, гипс, глинистые минералы, оксиды железа', en: 'Halite, gypsum, clay minerals, iron oxides' },
+    soilCat: 'evaporite',
+    soilComp: { ru: 'Засолённый песчано-глинистый субстрат с соляной коркой', en: 'Saline sandy-clay substrate with evaporitic salt crust' },
+    wind: 34, windDir: 'NW', windDirLabel: { ru: 'СЗ (315°)', en: 'NW (315°)' },
+    processCat: 'dust_erosion',
+    processDesc: { ru: 'Интенсивная ветровая эрозия и вытачивание гигантских ярдангов', en: 'Intense wind erosion carving giant yardang ridges' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'NDVI 0.01 (Абсолютная абиогенная пустыня)', en: 'NDVI 0.01 (Hyper-arid lifeless desert)' },
+    waterIce: { ru: 'Практически отсутствует (рекордный нагрев грунта до 70°C)', en: 'Virtually absent (record ground heating up to 70°C)' },
+    missions: 'MODIS Thermal Anomaly & Mars Yardang Analog',
+    desc: { ru: 'Малоизученный эталон эоловой эрозии: ветры выточили здесь мега-ярданги, идентичные марсианским.', en: 'Under-explored aeolian benchmark: persistent winds carved mega-yardangs identical to Martian ridges.' }
+  },
+  {
+    id: 'qaidam',
+    name: { ru: 'Впадина Цайдам (Тибетское нагорье), Китай', en: 'Qaidam Basin (Tibetan Plateau), China' },
+    lat: 37.85, lon: 93.40, elev: 2850, slope: 5, world: 'mars', isNew: true,
+    mineralCat: 'salts_lithium',
+    minerals: { ru: 'Литиевые рассолы, сульфаты магния, галит, бораты', en: 'Lithium brines, magnesium sulfates, halite, borates' },
+    soilCat: 'evaporite',
+    soilComp: { ru: 'Высокогорные эвапориты, сульфатные солончаки и эоловый лёсс', en: 'High-altitude evaporites, sulfate playas & aeolian loess' },
+    wind: 28, windDir: 'W', windDirLabel: { ru: 'З (275°)', en: 'W (275°)' },
+    processCat: 'fluvial_brine',
+    processDesc: { ru: 'Высыхание древних озёр, крио-рассолы и пылевые бури', en: 'Paleolake desiccation, cryo-brines & dust storms' },
+    bioWaterCat: 'brine_extremophile',
+    veg: { ru: 'NDVI 0.04 (Галофильные микроорганизмы в рассолах)', en: 'NDVI 0.04 (Halophilic microbes in brines)' },
+    waterIce: { ru: 'Гиперсолёные плайя-озёра и сезонная мерзлота', en: 'Hypersaline playa lakes & seasonal permafrost' },
+    missions: 'Tianwen-1 Mars Analog Research',
+    desc: { ru: 'Высокогорная холодная пустыня на высоте ~2850 м: объединяет низкое давление, ярданги и сульфатные плайи.', en: 'High-altitude cold desert at ~2850 m combining low air pressure, yardangs, and sulfate playas.' }
+  },
+  {
+    id: 'tolbachik',
+    name: { ru: 'Вулкан Толбачик (Шлаковые конусы), Камчатка', en: 'Tolbachik Volcano (Cinder Cones), Kamchatka' },
+    lat: 55.83, lon: 160.33, elev: 1450, slope: 17, world: 'moon', isNew: true,
+    mineralCat: 'titanium_basalt',
+    minerals: { ru: 'Магнезиальные базальты, ильменит, самородные металлы, фумарольные сульфаты', en: 'Magnesian basalts, ilmenite, native metals, fumarolic sulfates' },
+    soilCat: 'basalt_tephra',
+    soilComp: { ru: 'Свежий базальтовый шлак, бомбы и пепел без почвенного слоя', en: 'Fresh basaltic scoria, volcanic bombs & ash with zero soil' },
+    wind: 25, windDir: 'NW', windDirLabel: { ru: 'СЗ (310°)', en: 'NW (310°)' },
+    processCat: 'volcanism',
+    processDesc: { ru: 'Трещинные извержения, лавовые трубки и фумарольная минерализация', en: 'Fissure eruptions, lava tubes & fumarolic mineralization' },
+    bioWaterCat: 'cryo_ice',
+    veg: { ru: 'NDVI 0.02 (Пионерные термофилы у фумарол)', en: 'NDVI 0.02 (Pioneer thermophiles near fumaroles)' },
+    waterIce: { ru: 'Многолетние снежники и ледяные пещеры в лавовых потоках', en: 'Perennial snowpacks & ice caves inside lava flows' },
+    missions: 'Lunokhod Rover Field Trials & Lava Tube Analog',
+    desc: { ru: 'Полигон испытаний советских луноходов: свежие шлаковые поля и лавовые пещеры моделируют рельеф Луны.', en: 'Historic Lunokhod rover test site: fresh scoria fields and lava caves replicate lunar terrain.' }
+  },
+  {
+    id: 'fedchenko',
+    name: { ru: 'Ледник Федченко (Центральный Памир), Таджикистан', en: 'Fedchenko Glacier (Central Pamir), Tajikistan' },
+    lat: 38.92, lon: 72.22, elev: 4100, slope: 19, world: 'mars', isNew: true,
+    mineralCat: 'water_ice',
+    minerals: { ru: 'Крупнейший горно-долинный ледник, моренный обломочный чехол', en: 'Massive valley glacier, morainic debris mantle' },
+    soilCat: 'permafrost',
+    soilComp: { ru: 'Лёд, перекрытый щебнисто-песчаной мореной (модель лопастных ледников Марса)', en: 'Glacial ice mantled by rocky debris (model for Martian lobate debris aprons)' },
+    wind: 31, windDir: 'W', windDirLabel: { ru: 'З (265°)', en: 'W (265°)' },
+    processCat: 'ice_dynamics',
+    processDesc: { ru: 'Вязко-пластическое движение льда под моренным чехлом и гляциальный сток', en: 'Viscous-plastic ice flow beneath debris cover & glacial runoff' },
+    bioWaterCat: 'cryo_ice',
+    veg: { ru: 'NDVI 0.02 (Нивально-гляциальная зона)', en: 'NDVI 0.02 (Nival-glacial zone)' },
+    waterIce: { ru: 'Мощный ледниковый панцирь (толщина до 1000 м) и талые водотоки', en: 'Thick glacier ice (up to 1000 m) & meltwater streams' },
+    missions: 'High-Altitude Glaciology & Mars Debris-Covered Glacier Analog',
+    desc: { ru: 'Крупнейший горный ледник мира длиной 77 км: идеальный аналог погребённых ледников средних широт Марса.', en: 'World’s longest mountain glacier (77 km): ideal analog for debris-covered glaciers on mid-latitude Mars.' }
+  },
+  {
+    id: 'manjanggul',
+    name: { ru: 'Лавовая трубка Манджангуль, о. Чеджу, Корея', en: 'Manjanggul Lava Tube, Jeju Island, Korea' },
+    lat: 33.53, lon: 126.77, elev: 120, slope: 5, world: 'moon', isNew: true,
+    mineralCat: 'titanium_basalt',
+    minerals: { ru: 'Оливиновые базальты, вторичные карбонаты, железо-титановые оксиды', en: 'Olivine basalts, secondary carbonates, Fe-Ti oxides' },
+    soilCat: 'basalt_tephra',
+    soilComp: { ru: 'Застывшая базальтовая кровля толщиной 5–25 м с обвалами-скайлайтами', en: 'Solidified basalt roof 5–25 m thick with skylight collapses' },
+    wind: 3, windDir: 'CALM', windDirLabel: { ru: 'Штиль (внутри)', en: 'Calm (subsurface)' },
+    processCat: 'volcanism',
+    processDesc: { ru: 'Формирование подземных лавовых туннелей и термическая стабилизация', en: 'Subsurface lava tunnel formation & thermal stabilization' },
+    bioWaterCat: 'cryo_ice',
+    veg: { ru: 'NDVI 0.00 (Подземная афотическая полость)', en: 'NDVI 0.00 (Subsurface aphotic cavity)' },
+    waterIce: { ru: 'Конденсатная влага и стабильная температура +12°C', en: 'Condensation moisture & stable +12°C temperature' },
+    missions: 'LRO Lunar Skylight & Subsurface Habitat Analog',
+    desc: { ru: 'Базальтовый тоннель длиной 7.4 км — прямой земной прототип лунных лавовых трубок в Холмах Мариуса.', en: '7.4 km basalt tunnel — direct terrestrial prototype for lunar lava tubes in Marius Hills.' }
+  },
+  {
+    id: 'donjuan',
+    name: { ru: 'Пруд Дон Жуан (Долина Райта), Антарктида', en: 'Don Juan Pond (Wright Valley), Antarctica' },
+    lat: -77.56, lon: 161.19, elev: 120, slope: 2, world: 'mars', isNew: true,
+    mineralCat: 'water_ice',
+    minerals: { ru: 'Хлорид кальция (CaCl₂), антарктицит, галит, гипс', en: 'Calcium chloride (CaCl₂), antarcticite, halite, gypsum' },
+    soilCat: 'evaporite',
+    soilComp: { ru: 'Насыщенный рассол CaCl₂ (солёность >40%), не замерзающий до −50°C', en: 'Saturated CaCl₂ brine (>40% salinity) staying liquid down to −50°C' },
+    wind: 18, windDir: 'W', windDirLabel: { ru: 'З (260°)', en: 'W (260°)' },
+    processCat: 'fluvial_brine',
+    processDesc: { ru: 'Деликвесценция солей (поглощение влаги из воздуха) и крио-рассолы', en: 'Salt deliquescence (moisture absorption from air) & cryo-brines' },
+    bioWaterCat: 'brine_extremophile',
+    veg: { ru: 'NDVI 0.00 (Предел выживаемости микроорганизмов)', en: 'NDVI 0.00 (Limit of microbial survival)' },
+    waterIce: { ru: 'Незамерзающий гиперсолёный рассол среди вечной мерзлоты', en: 'Unfrozen hypersaline brine amidst permafrost' },
+    missions: 'Mars Recurring Slope Lineae (RSL) Brine Analog',
+    desc: { ru: 'Единственный водоём на Земле, остающийся жидким при −50°C — ключ к пониманию сезонных рассолов Марса.', en: 'Only water body on Earth remaining liquid at −50°C — key to understanding seasonal Martian brines.' }
+  },
+  {
+    id: 'kamil',
+    name: { ru: 'Кратер Камиль (Восточная Сахара), Египет', en: 'Kamil Crater (Eastern Sahara), Egypt' },
+    lat: 22.02, lon: 26.09, elev: 400, slope: 7, world: 'moon', isNew: true,
+    mineralCat: 'anorthosite_ree',
+    minerals: { ru: 'Кварцевые песчаники, метеоритное железо-никель (камасит), импактные стёкла', en: 'Quartz sandstones, meteoritic Fe-Ni (kamacite), impact glasses' },
+    soilCat: 'anorthosite',
+    soilComp: { ru: 'Светлый песчаный субстрат с радиальными лучами выбросов', en: 'Bright sandy substrate with radial ejecta rays' },
+    wind: 20, windDir: 'N', windDirLabel: { ru: 'С (10°)', en: 'N (10°)' },
+    processCat: 'dust_erosion',
+    processDesc: { ru: 'Свежая ударная морфология с лучевой системой выбросов', en: 'Fresh impact crater morphology with radial ejecta rays' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'NDVI 0.01 (Гиперсухая каменистая пустыня)', en: 'NDVI 0.01 (Hyper-arid rocky desert)' },
+    waterIce: { ru: 'Абсолютно безводная среда', en: 'Completely anhydrous environment' },
+    missions: 'Fresh Rayed Crater & Lunar Regolith Impact Analog',
+    desc: { ru: 'Ударный кратер диаметром 45 м с идеально сохранившимися лучами выбросов, аналогичными молодым кратерам Луны.', en: '45 m impact crater with preserved ejecta rays mirroring young lunar craters.' }
+  },
+  {
+    id: 'samail',
+    name: { ru: 'Офиолитовый массив Семаил, Оман', en: 'Samail Ophiolite Massif, Oman' },
+    lat: 23.20, lon: 58.20, elev: 1500, slope: 18, world: 'mars', isNew: true,
+    mineralCat: 'anorthosite_ree',
+    minerals: { ru: 'Оливин, серпентин, магнезит, карбонаты, хромит', en: 'Olivine, serpentine, magnesite, carbonates, chromite' },
+    soilCat: 'anorthosite',
+    soilComp: { ru: 'Ультраосновные мантийные породы с активной серпентинизацией и H₂/CH₄', en: 'Ultramafic mantle rocks with active serpentinization & H₂/CH₄' },
+    wind: 15, windDir: 'NE', windDirLabel: { ru: 'СВ (45°)', en: 'NE (45°)' },
+    processCat: 'fluvial_brine',
+    processDesc: { ru: 'Низкотемпературная серпентинизация и генерация абиогенного водорода', en: 'Low-temperature serpentinization & abiotic hydrogen generation' },
+    bioWaterCat: 'brine_extremophile',
+    veg: { ru: 'NDVI 0.06 (Подземные водород-потребляющие археи)', en: 'NDVI 0.06 (Subsurface hydrogenotrophic archaea)' },
+    waterIce: { ru: 'Гиперщелочные источники (pH 11.5), насыщенные H₂ и CH₄', en: 'Hyperalkaline springs (pH 11.5) saturated with H₂ and CH₄' },
+    missions: 'Nili Fossae Carbonate & Martian Methane Origin Analog',
+    desc: { ru: 'Обнажённая океаническая мантия с оливином и карбонатами — прямой аналог пород Нили-Фоссе на Марсе.', en: 'Exposed oceanic mantle with olivine and carbonates — direct analog of Nili Fossae on Mars.' }
+  },
+  {
+    id: 'uyuni',
+    name: { ru: 'Солончак Уюни, Альтиплано, Боливия', en: 'Salar de Uyuni, Altiplano, Bolivia' },
+    lat: -20.13, lon: -67.49, elev: 3656, slope: 1, world: 'mars', isNew: false,
+    mineralCat: 'salts_lithium',
+    minerals: { ru: 'Литий (крупнейший резерв мира), галит, гипс, улексит', en: 'Lithium (world’s largest reserve), halite, gypsum, ulexite' },
+    soilCat: 'evaporite',
+    soilComp: { ru: 'Полигональная соляная корка толщиной 1–10 м над рассолом', en: 'Polygonal salt crust 1–10 m thick overlying brine' },
+    wind: 22, windDir: 'W', windDirLabel: { ru: 'З (270°)', en: 'W (270°)' },
+    processCat: 'fluvial_brine',
+    processDesc: { ru: 'Сезонное затопление, кристаллизация солей и полигональное растрескивание', en: 'Seasonal flooding, salt crystallization & polygonal cracking' },
+    bioWaterCat: 'brine_extremophile',
+    veg: { ru: 'NDVI 0.01 (Галофильные археи в соляной корке)', en: 'NDVI 0.01 (Halophilic archaea in salt crust)' },
+    waterIce: { ru: 'Тонкий слой рассола в сезон дождей, сильный УФ на 3656 м', en: 'Thin brine sheet in wet season, intense UV at 3656 m' },
+    missions: 'Satellite Altimeter Calibration & Martian Paleolake Analog',
+    desc: { ru: 'Высокогорное высохшее озеро (3656 м): эталон калибровки орбитальных альтиметров и модель эвапоритов Марса.', en: 'High-altitude dried lake (3656 m): orbital altimeter calibration benchmark and Martian evaporite model.' }
+  }
+];
+
+const DISCOVERY_CANDIDATES_POOL = [
+  {
+    id: 'aralkum',
+    name: { ru: 'Пустыня Аралкум (Высохшее дно Арала), Казахстан/Узбекистан', en: 'Aralkum Desert (Dried Aral Seabed), Kazakhstan/Uzbekistan' },
+    lat: 45.15, lon: 59.85, elev: 32, slope: 2, world: 'mars', isNew: true,
+    mineralCat: 'salts_lithium',
+    minerals: { ru: 'Сульфаты натрия/магния, галит, карбонаты, гипс', en: 'Sodium/magnesium sulfates, halite, carbonates, gypsum' },
+    soilCat: 'evaporite',
+    soilComp: { ru: 'Солончаково-пылевой реголит молодого высохшего бассейна', en: 'Saline-dusty regolith of a rapidly desiccated basin' },
+    wind: 27, windDir: 'NE', windDirLabel: { ru: 'СВ (50°)', en: 'NE (50°)' },
+    processCat: 'dust_erosion',
+    processDesc: { ru: 'Соляные пылевые бури и быстрая деградация водного бассейна', en: 'Saline dust storms & rapid basin desiccation' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'NDVI 0.05 (Разреженные галофиты на окраинах)', en: 'NDVI 0.05 (Sparse halophytes on margins)' },
+    waterIce: { ru: 'Остаточные гиперсолёные лагуны и эвапоритовые корки', en: 'Residual hypersaline lagoons & evaporite crusts' },
+    missions: 'Rapid Basin Desiccation & Dust Plume Dynamics',
+    desc: { ru: 'Новая быстроразвивающаяся солончаковая пустыня — уникальная природная модель высыхания морей древнего Марса.', en: 'Young expanding salt desert — natural model for the desiccation of ancient Martian seas.' }
+  },
+  {
+    id: 'namib_erg',
+    name: { ru: 'Дюнное море Намиб (Соссусфлей), Намибия', en: 'Namib Sand Sea (Sossusvlei), Namibia' },
+    lat: -24.73, lon: 15.29, elev: 580, slope: 15, world: 'mars', isNew: true,
+    mineralCat: 'iron_sulfates',
+    minerals: { ru: 'Кварцевые пески в оболочке оксидов железа (гематит), гранат, магнетит', en: 'Iron-oxide coated quartz sands (hematite), garnet, magnetite' },
+    soilCat: 'perchlorate',
+    soilComp: { ru: 'Красный эоловый песок с плёнкой Fe₂O₃ и глинистые такыры (влеи)', en: 'Red aeolian sand with Fe₂O₃ coating & clay pans (vleis)' },
+    wind: 24, windDir: 'SW', windDirLabel: { ru: 'ЮЗ (215°)', en: 'SW (215°)' },
+    processCat: 'dust_erosion',
+    processDesc: { ru: 'Миграция звёздчатых и поперечных дюн и туманное выветривание', en: 'Star & transverse dune migration and fog-driven weathering' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'NDVI 0.02 (Аридные дюны и глинистые плайи)', en: 'NDVI 0.02 (Arid dunes & clay playas)' },
+    waterIce: { ru: 'Прибрежные адвективные туманы как единственный источник влаги', en: 'Coastal advective fogs as sole moisture source' },
+    missions: 'Curiosity Bagnold Dunes & Aeolian Bedform Analog',
+    desc: { ru: 'Древнейшая пустыня Земли с высокими красными дюнами — эталон для изучения дюн Багнольда в кратере Гейл.', en: 'Earth’s oldest desert with towering red dunes — benchmark for Bagnold Dunes in Gale Crater.' }
+  },
+  {
+    id: 'manicouagan',
+    name: { ru: 'Ударный кратер Маникуаган, Квебек, Канада', en: 'Manicouagan Impact Crater, Quebec, Canada' },
+    lat: 51.38, lon: -68.70, elev: 360, slope: 11, world: 'moon', isNew: true,
+    mineralCat: 'anorthosite_ree',
+    minerals: { ru: 'Анортозиты (лабрадорит), ударные расплавные породы (тагамиты), гранат', en: 'Anorthosites (labradorite), impact melt sheets, garnet' },
+    soilCat: 'anorthosite',
+    soilComp: { ru: 'Докембрийские анортозиты и импактные брекчии Канадского щита', en: 'Precambrian anorthosites & impact breccias of Canadian Shield' },
+    wind: 21, windDir: 'W', windDirLabel: { ru: 'З (270°)', en: 'W (270°)' },
+    processCat: 'ice_dynamics',
+    processDesc: { ru: 'Ледниковая экзарация древней ударной структуры с центральным поднятием', en: 'Glacial scouring of an ancient multi-ring impact structure' },
+    bioWaterCat: 'cryo_ice',
+    veg: { ru: 'NDVI 0.25 (Бореальная тайга вокруг кольцевого озера)', en: 'NDVI 0.25 (Boreal taiga around annular lake)' },
+    waterIce: { ru: 'Кольцевое водохранилище и длительный ледостав', en: 'Annular reservoir & prolonged seasonal ice cover' },
+    missions: 'Lunar Highland Anorthosite & Central Peak Analog',
+    desc: { ru: 'Один из крупнейших сохранившихся кратеров Земли (100 км) в анортозитах, аналогичных лунным материкам.', en: 'One of Earth’s largest preserved craters (100 km) in anorthosites matching lunar highlands.' }
+  }
+];
+
+const MARS_LANDMARKS = [
+  {
+    id: 'jezero',
+    name: { ru: 'Кратер Езеро (NASA Perseverance)', en: 'Jezero Crater (NASA Perseverance)' },
+    lat: 18.38, lon: 77.58, elev: -2570, slope: 6, world: 'mars',
+    mineralCat: 'iron_sulfates',
+    minerals: { ru: 'Оливин, карбонаты, смектитовые глины, сульфаты, кремнезём', en: 'Olivine, carbonates, smectite clays, sulfates, silica' },
+    soilCat: 'perchlorate',
+    soilComp: { ru: 'Озёрно-дельтовые аргиллиты и базальтовый реголит с перхлоратами', en: 'Lacustrine-deltaic mudstones & basaltic regolith with perchlorates' },
+    wind: 19, windDir: 'NW', windDirLabel: { ru: 'СЗ (310°)', en: 'NW (310°)' },
+    processCat: 'fluvial_brine',
+    processDesc: { ru: 'Древняя речная дельта (3.7 млрд лет) и современная ветровая рябь', en: 'Ancient river delta (3.7 Ga) & modern aeolian ripples' },
+    bioWaterCat: 'brine_extremophile',
+    veg: { ru: 'Поиск ископаемых биосигнатур', en: 'Search for fossil biosignatures' },
+    waterIce: { ru: 'Гидратированные минералы и подповерхностный лёд', en: 'Hydrated minerals & subsurface ice' },
+    desc: { ru: 'Древнее кратерное озеро и дельта реки, где марсоход Perseverance собирает керны для возврата на Землю.', en: 'Ancient crater lake and river delta where Perseverance caches core samples for Mars Sample Return.' }
+  },
+  {
+    id: 'olympus',
+    name: { ru: 'Гора Олимп (Кальдера, 21.2 км)', en: 'Olympus Mons (Caldera, 21.2 km)' },
+    lat: 18.65, lon: -133.80, elev: 21229, slope: 15, world: 'mars',
+    mineralCat: 'titanium_basalt',
+    minerals: { ru: 'Толеитовые базальты, пироксен, оливин, титаномагнетит', en: 'Tholeiitic basalts, pyroxene, olivine, titanomagnetite' },
+    soilCat: 'basalt_tephra',
+    soilComp: { ru: 'Свежие лавовые потоки, перекрытые тонкой пылью Fe₂O₃', en: 'Young lava flows mantled by fine Fe₂O₃ dust' },
+    wind: 28, windDir: 'W', windDirLabel: { ru: 'З (260°)', en: 'W (260°)' },
+    processCat: 'volcanism',
+    processDesc: { ru: 'Крупнейший щитовой вулканизм в Солнечной системе и лавовые трубки', en: 'Largest shield volcanism in the Solar System & lava tubes' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'Отсутствует', en: 'Absent' },
+    waterIce: { ru: 'Орографические облака водяного льда на склонах', en: 'Orographic water-ice clouds on flanks' },
+    desc: { ru: 'Гигантский щитовой вулкан высотой 21.2 км со сложной системой из шести вложенных кальдер.', en: 'Giant 21.2 km shield volcano featuring a nested six-caldera summit complex.' }
+  },
+  {
+    id: 'gale',
+    name: { ru: 'Кратер Гейл / Гора Шарп (Curiosity)', en: 'Gale Crater / Mount Sharp (Curiosity)' },
+    lat: -5.45, lon: 137.85, elev: -4500, slope: 12, world: 'mars',
+    mineralCat: 'iron_sulfates',
+    minerals: { ru: 'Глины (филлосиликаты), сульфаты (гипс, ярозит), гематит', en: 'Clays (phyllosilicates), sulfates (gypsum, jarosite), hematite' },
+    soilCat: 'perchlorate',
+    soilComp: { ru: 'Слоистые осадочные породы и тёмные базальтовые пески дюн Багнольда', en: 'Layered sedimentary strata & dark basaltic Bagnold dune sands' },
+    wind: 22, windDir: 'NW', windDirLabel: { ru: 'СЗ (320°)', en: 'NW (320°)' },
+    processCat: 'dust_erosion',
+    processDesc: { ru: 'Ветровая эксгумация осадочной толщи горы Шарп и пылевые вихри', en: 'Aeolian exhumation of Mount Sharp strata & dust devils' },
+    bioWaterCat: 'brine_extremophile',
+    veg: { ru: 'Обнаружены сложные органические молекулы', en: 'Complex organic molecules detected' },
+    waterIce: { ru: 'Гидратированные сульфаты и кристаллизационная вода', en: 'Hydrated sulfates & crystal-bound water' },
+    desc: { ru: 'Ударный кратер диаметром 154 км с пятикилометровой осадочной горой Эолида (Шарп) в центре.', en: '154 km impact basin with the 5 km layered sedimentary Mount Sharp at its center.' }
+  }
+];
+
+const MOON_LANDMARKS = [
+  {
+    id: 'shackleton',
+    name: { ru: 'Кратер Шеклтон (Южный полюс · Artemis III)', en: 'Shackleton Crater (South Pole · Artemis III)' },
+    lat: -89.54, lon: 129.78, elev: -4200, slope: 18, world: 'moon',
+    mineralCat: 'water_ice',
+    minerals: { ru: 'Водяной лёд (H₂O) в вечной тени, анортозиты, летучие соединения', en: 'Water ice (H₂O) in PSRs, anorthosites, trapped volatiles' },
+    soilCat: 'permafrost',
+    soilComp: { ru: 'Криогенный анортозитовый реголит с примесью водяного льда (до 5%)', en: 'Cryogenic anorthositic regolith with water ice fraction (up to 5%)' },
+    wind: 0, windDir: 'CALM', windDirLabel: { ru: 'Вакуум (0 км/ч)', en: 'Vacuum (0 km/h)' },
+    processCat: 'ice_dynamics',
+    processDesc: { ru: 'Криогенное улавливание летучих веществ в кратерах вечной тени (PSR)', en: 'Cryogenic volatile trapping in Permanently Shadowed Regions' },
+    bioWaterCat: 'cryo_ice',
+    veg: { ru: 'Стерильная среда', en: 'Sterile environment' },
+    waterIce: { ru: 'Залежи водяного льда на дне кратера при −233°C', en: 'Water-ice deposits on crater floor at −233°C' },
+    desc: { ru: 'Приоритетная зона высадки NASA Artemis: вал освещён почти постоянно, а дно находится в вечной тени.', en: 'Priority NASA Artemis landing region: crater rim enjoys near-permanent sunlight while floor stays in eternal shadow.' }
+  },
+  {
+    id: 'tranquillitatis',
+    name: { ru: 'Море Спокойствия (Apollo 11)', en: 'Mare Tranquillitatis (Apollo 11)' },
+    lat: 0.67, lon: 23.47, elev: -1800, slope: 3, world: 'moon',
+    mineralCat: 'titanium_basalt',
+    minerals: { ru: 'Ильменит (высокое содержание TiO₂ до 8%), пироксен, плагиоклаз, Гелий-3', en: 'Ilmenite (high TiO₂ up to 8%), pyroxene, plagioclase, Helium-3' },
+    soilCat: 'basalt_tephra',
+    soilComp: { ru: 'Тёмный высокотитанистый морской базальтовый реголит и агглютинаты', en: 'Dark high-titanium mare basalt regolith & agglutinates' },
+    wind: 0, windDir: 'CALM', windDirLabel: { ru: 'Вакуум (0 км/ч)', en: 'Vacuum (0 km/h)' },
+    processCat: 'volcanism',
+    processDesc: { ru: 'Древний базальтовый вулканизм и микрометеоритное перемалывание', en: 'Ancient mare basalt volcanism & micrometeorite gardening' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'Стерильная среда', en: 'Sterile environment' },
+    waterIce: { ru: 'Следы солнечного гидроксила (OH)', en: 'Trace solar-wind hydroxyl (OH)' },
+    desc: { ru: 'Базальтовая равнина с высоким содержанием титана — ключевой ресурс для производства кислорода (ISRU).', en: 'High-titanium basaltic plain — key resource target for lunar ISRU oxygen production.' }
+  },
+  {
+    id: 'marius_hills',
+    name: { ru: 'Холмы Мариуса (Провалы в лавовые трубки)', en: 'Marius Hills (Lunar Lava Tube Skylights)' },
+    lat: 14.00, lon: -56.00, elev: -1500, slope: 12, world: 'moon',
+    mineralCat: 'titanium_basalt',
+    minerals: { ru: 'Морские базальты, оливин, пироксен, ильменит', en: 'Mare basalts, olivine, pyroxene, ilmenite' },
+    soilCat: 'basalt_tephra',
+    soilComp: { ru: 'Базальтовые лавовые покровы и пирокластические отложения', en: 'Basaltic lava flows & pyroclastic mantling deposits' },
+    wind: 0, windDir: 'CALM', windDirLabel: { ru: 'Вакуум (0 км/ч)', en: 'Vacuum (0 km/h)' },
+    processCat: 'volcanism',
+    processDesc: { ru: 'Вулканические купола и обрушение кровли подземных лавовых тоннелей', en: 'Volcanic domes & roof collapse into subsurface lava tunnels' },
+    bioWaterCat: 'hyperarid_no_veg',
+    veg: { ru: 'Стерильная среда', en: 'Sterile environment' },
+    waterIce: { ru: 'Возможный лёд в глубоких затенённых нишах', en: 'Potential trapped volatiles in deep shadowed recesses' },
+    desc: { ru: 'Крупнейший комплекс вулканических куполов Луны с подтверждёнными входами в подземные лавовые трубки.', en: 'Largest volcanic dome complex on the Moon with confirmed skylight entrances into subsurface lava tubes.' }
+  }
+];
+
+// ============================================================================
+// 2. BILINGUAL LOCALIZATION DICTIONARY (RU / EN)
+// ============================================================================
+let lang = 'ru';
+const I18N = {
+  ru: {
+    subtitle: 'Планетарные аналоги и орбитальная ГИС',
+    navHome: 'Главная',
+    navMars: 'Марс',
+    navMoon: 'Луна',
+    navExplorer: 'NASA Карты',
+    navFinder: 'Поиск + Новые места',
+    navProcesses: 'Процессы и Среда',
+    navTelemetry: 'Сравнение',
+    navDb: 'База',
+    navGames: 'Игры (2)',
+    heroBadge: 'NASA Trek · Google Earth · Macrostrat · Live Wind · Многофакторная ГИС',
+    heroTitle: 'Планеты, процессы и новые аналоги Земли',
+    heroDesc: 'Анализируйте рельеф, геологию, минералогию, состав грунтов, потоки ветра в реальном времени, пылевые бури, движение льдов, вулканизм и открывайте ранее неизученные территории.',
+    btnMaps: 'Открыть карты NASA и Google',
+    btnDiscoverHero: 'Поиск и открытие новых мест',
+    btnGamesHero: '3D Симуляторы и игры',
+    btnRandom: 'Случайная экспедиция',
+    cardMarsTitle: 'Марс · NASA Trek / MOLA / Viking',
+    cardMarsSub: 'Пылевые бури, перхлораты, палеозёра',
+    cardMoonTitle: 'Луна · NASA LRO WAC / LOLA',
+    cardMoonSub: 'Ильменит, анортозит, вечная тень (PSR)',
+    cardGamesTitle: '3D Космические симуляторы',
+    cardGamesSub: 'Solar Frontier HD & Orbital Works',
+    marsSlideTag: 'Планета · NASA Mars Trek / MRO HiRISE / MOLA',
+    marsSlideDesc: 'Динамичный мир глобальных пылевых бурь, сезонной сублимации полярного льда CO₂/H₂O, древних флювиальных дельт и базальтовых вулканов с высоким содержанием оксидов железа, сульфатов и перхлоратов.',
+    btnOpenMars: 'Открыть слои NASA для Марса →',
+    moonSlideTag: 'Спутник · NASA Moon Trek / LRO WAC / LOLA',
+    moonSlideDesc: 'Безвоздушное тело, эволюционирующее за счёт ударного перемалывания реголита, экстремальных термических циклов и криогенных ловушек водяного льда в полярных кратерах.',
+    btnOpenMoon: 'Открыть слои NASA для Луны →',
+    btnBack: '← Назад',
+    barHome: 'На главную',
+    tabMaps: 'NASA и Google Карты',
+    tabFinder: 'Поиск + Новые места',
+    tabProc: 'Процессы и Среда',
+    tabComp: 'Сравнение планет',
+    tabDb: 'Реестр аналогов',
+    tabGames: 'Игры и симуляторы',
+    mapEyebrow: 'NASA Trek · NASA GIBS · Google Earth · Macrostrat Geology',
+    mapTitle: 'Орбитальные карты высокого разрешения и реальные потоки',
+    mapSub: 'Переключайте планеты и слои: снимки Google/NASA, рельеф MOLA/LOLA/SRTM, геологию Macrostrat/USGS, живые ветровые потоки (Windy-режим), грунт и ИК-карты.',
+    pEarth: 'Земля (Google / NASA)',
+    pMars: 'Марс (NASA Trek / USGS)',
+    pMoon: 'Луна (NASA LRO)',
+    layerFormatLabel: 'Формат слоя:',
+    tVisual: 'Спутник / Мозаика',
+    tRelief: 'Рельеф (DEM / MOLA / LOLA)',
+    tGeology: 'Геология и Минералы',
+    tWind: 'Ветры (Live Потоки)',
+    tSoil: 'Грунт / Влажность / Лёд',
+    tIllum: 'Освещённость / ИК',
+    windVectorsLabel: 'Маркеры розы ветров',
+    mapHint: 'Кликните в любую точку планеты для извлечения высоты, геологии, состава грунта, ветра и поиска аналогов.',
+    inspHeader: 'Интегрированный инспектор территории',
+    syncing: 'Синхронизация API...',
+    envComplexHeader: 'Комплексное наблюдение среды',
+    lblRelief: 'Рельеф / Уклон',
+    lblTemp: 'Температура',
+    lblVeg: 'Растительность / Био',
+    lblWater: 'Вода / Лёд',
+    lblMinerals: 'Полезные ископаемые и минералы',
+    lblSoil: 'Состав грунта / реголита',
+    lblWind: 'Ветер (напр. / ск.)',
+    lblProc: 'Активный процесс',
+    keyPointsTitle: 'Ключевые точки текущего мира:',
+    btnMatchTarget: 'Подобрать известные и НОВЫЕ аналоги',
+    btnAiBrief: 'AI-заключение по геологии, ресурсам и процессам',
+    aiReportTitle: 'Научное заключение ИИ-планетолога',
+    portalsTitle: 'Подключённые научные и картографические источники NASA и Google',
+    finderEyebrow: 'Расширенный поиск + Алгоритм открытия новых локаций',
+    finderTitle: 'Подбор территорий и поиск ранее неизученных мест',
+    finderSub: 'Фильтруйте по минералам, составу грунта, направлению ветра, растительности, воде/льду и динамическим процессам. Нажмите «Открыть новую территорию» для поиска малоизученных кандидатов.',
+    filterPanelTitle: 'Параметры поиска территории',
+    fWorldLbl: 'Целевой мир',
+    optAllWorlds: 'Все (Марс + Луна)',
+    fNovLbl: 'Статус изученности',
+    optNovAll: 'Все территории',
+    optNovNew: 'Новые / Неизученные',
+    optNovOld: 'Классические полигоны',
+    fMinLbl: 'Полезные ископаемые / Руды',
+    optAnyMin: 'Любые минералы',
+    optMinIron: 'Оксиды железа, пирит, сульфаты, ярозит',
+    optMinTi: 'Ильменит (титан), базальты, оливин',
+    optMinSalt: 'Соли, литий, гипс, перхлораты',
+    optMinIce: 'Водяной лёд, газогидраты, рассолы',
+    optMinAnor: 'Анортозит, редкие земли, карбонаты',
+    fSoilLbl: 'Состав грунта / реголита',
+    optAnySoil: 'Любой состав грунта',
+    optSoilPer: 'Сульфатно-перхлоратный (без органики)',
+    optSoilBas: 'Базальтовая тефра и вулканический шлак',
+    optSoilPerm: 'Вечная мерзлота и криогенный грунт',
+    optSoilEvap: 'Солончаково-эвапоритовая корка',
+    optSoilAnor: 'Светлый анортозитовый / карбонатный',
+    fProcLbl: 'Доминирующий динамический процесс',
+    optAnyProc: 'Любой динамический процесс',
+    optProcDust: 'Пылевые бури и эоловая эрозия (ярданги)',
+    optProcVolc: 'Вулканическая активность и лавовые трубки',
+    optProcIce: 'Движение льдов, сублимация и подлёдные воды',
+    optProcWater: 'Водные изменения, пересыхание озёр, рассолы',
+    fWindDirLbl: 'Направление ветра',
+    optAnyDir: 'Любое',
+    fBioLbl: 'Растительность / Вода',
+    optAnyBio: 'Любой профиль',
+    optBioArid: 'Без растительности, сухо',
+    optBioIce: 'Лёд / криптоэндолиты',
+    optBioBrine: 'Рассолы / экстремофилы',
+    fElevLbl: 'Высота над уровнем моря',
+    fWindSpdLbl: 'Скорость ветра',
+    btnCalcScore: 'Рассчитать многофакторный индекс',
+    btnDiscover: 'Открыть новую неизученную территорию',
+    btnReset: 'Сбросить фильтры',
+    newAddedBanner: 'Новый кандидат добавлен в каталог и на карту',
+    procEyebrow: 'Динамическая планетология · Сравнение процессов',
+    procTitle: 'Сравнение активных процессов: Земля · Марс · Луна',
+    procSub: 'Сопоставление геологических, атмосферных и криосферных процессов на планетах с прямыми полевыми аналогами на Земле.',
+    compEyebrow: 'NASA Planetary Fact Sheets & PDS',
+    compTitle: 'Сравнение условий, минералов и процессов: Земля · Луна · Марс',
+    thFactor: 'Фактор / Процесс',
+    thEarth: 'Земля (Эталон)',
+    thEng: 'Инженерный вывод',
+    dbEyebrow: 'Международный и исследовательский реестр',
+    dbTitle: 'Каталог планетарных аналогов и новых кандидатов',
+    dbSearchPh: 'Поиск по названию, минералу, процессу или миссии...',
+    newBadge: 'НОВОЕ МЕСТО',
+    openOnMapBtn: 'На карте →',
+    sitesCountSuffix: 'ТЕРРИТОРИЙ В РЕЕСТРЕ',
+    gamesEyebrow: 'Интерактивные 3D-тренажёры · 2 игры подключены',
+    gamesTitle: 'Космические симуляторы и тренировочные миссии',
+    gamesSub: 'Переключайтесь между новой версией колонизации Луны и Марса (Solar Frontier 3D Simulator-2) и ракетно-орбитальным конструктором (Orbital Works) без потери прогресса.',
+    bridgeReady: 'Обе игры готовы · Мост ORBITA-GIS активен',
+    badgeUpdated: 'ОБНОВЛЕНО v2',
+    game1Desc: 'Модульный конструктор ракет-носителей (VAB), расчёт TWR и Δv, опрос готовности GO/NO-GO, аэродинамика Max-Q и выход на орбиту Земли.',
+    game2Desc: 'Выход на поверхность Луны и Марса, лазерная добыча ильменита и гематита, 3D-принтер, строительство базы, пылевые бури, автономные дроны и карта Солнечной системы.',
+    btnPlayEmbedded: 'Запустить здесь',
+    btnOpenNewTab: 'В новой вкладке ↗',
+    btnSyncContext: 'Передать контекст ГИС',
+    btnReloadGame: 'Перезапустить',
+    btnFullscreen: 'На весь экран ⛶',
+    btnExitFullscreen: 'Свернуть ✕'
+  },
+  en: {
+    subtitle: 'Planetary Analogs & Orbital GIS',
+    navHome: 'Home',
+    navMars: 'Mars',
+    navMoon: 'Moon',
+    navExplorer: 'NASA Maps',
+    navFinder: 'Search + Discover',
+    navProcesses: 'Processes & Env',
+    navTelemetry: 'Compare',
+    navDb: 'Database',
+    navGames: 'Games (2)',
+    heroBadge: 'NASA Trek · Google Earth · Macrostrat · Live Wind · Multi-Factor GIS',
+    heroTitle: 'Planets, Dynamic Processes & New Earth Analogs',
+    heroDesc: 'Analyze relief, lithology, mineralogy, soil composition, real-time wind streamlines, dust storms, ice dynamics, volcanism, and discover unexplored terrestrial analog sites.',
+    btnMaps: 'Open NASA & Google Maps',
+    btnDiscoverHero: 'Search & Discover New Sites',
+    btnGamesHero: '3D Simulators & Games',
+    btnRandom: 'Random Expedition',
+    cardMarsTitle: 'Mars · NASA Trek / MOLA / Viking',
+    cardMarsSub: 'Dust storms, perchlorates, paleolakes',
+    cardMoonTitle: 'Moon · NASA LRO WAC / LOLA',
+    cardMoonSub: 'Ilmenite, anorthosite, permanent shadow (PSR)',
+    cardGamesTitle: '3D Space Simulators',
+    cardGamesSub: 'Solar Frontier HD & Orbital Works',
+    marsSlideTag: 'Planet · NASA Mars Trek / MRO HiRISE / MOLA',
+    marsSlideDesc: 'A dynamic world of global dust storms, seasonal CO₂/H₂O ice sublimation, ancient fluvial deltas, and basaltic volcanoes rich in iron oxides, sulfates, and perchlorates.',
+    btnOpenMars: 'Open NASA Mars Layers →',
+    moonSlideTag: 'Satellite · NASA Moon Trek / LRO WAC / LOLA',
+    moonSlideDesc: 'An airless body shaped by impact regolith gardening, extreme thermal swings, and cryogenic water-ice cold traps inside polar craters.',
+    btnOpenMoon: 'Open NASA Moon Layers →',
+    btnBack: '← Back',
+    barHome: 'Home',
+    tabMaps: 'NASA & Google Maps',
+    tabFinder: 'Search + Discover',
+    tabProc: 'Processes & Env',
+    tabComp: 'Planet Comparison',
+    tabDb: 'Analog Registry',
+    tabGames: 'Games & Simulators',
+    mapEyebrow: 'NASA Trek · NASA GIBS · Google Earth · Macrostrat Geology',
+    mapTitle: 'High-Resolution Orbital Maps & Live Flow Fields',
+    mapSub: 'Switch planets and thematic formats: Google/NASA imagery, MOLA/LOLA/SRTM relief, Macrostrat/USGS geology, live wind streamlines (Windy mode), soil, and IR maps.',
+    pEarth: 'Earth (Google / NASA)',
+    pMars: 'Mars (NASA Trek / USGS)',
+    pMoon: 'Moon (NASA LRO)',
+    layerFormatLabel: 'Layer format:',
+    tVisual: 'Satellite / Mosaic',
+    tRelief: 'Relief (DEM / MOLA / LOLA)',
+    tGeology: 'Geology & Minerals',
+    tWind: 'Winds (Live Streamlines)',
+    tSoil: 'Soil / Moisture / Ice',
+    tIllum: 'Illumination / IR',
+    windVectorsLabel: 'Wind rose markers',
+    mapHint: 'Click anywhere on a planet to extract elevation, geology, soil composition, live wind, and match analogs.',
+    inspHeader: 'Integrated Territory Inspector',
+    syncing: 'Syncing API...',
+    envComplexHeader: 'Integrated Environmental Observation',
+    lblRelief: 'Relief / Slope',
+    lblTemp: 'Temperature',
+    lblVeg: 'Vegetation / Bio',
+    lblWater: 'Water / Ice',
+    lblMinerals: 'Minerals & Resources',
+    lblSoil: 'Soil / Regolith Composition',
+    lblWind: 'Wind (Dir / Speed)',
+    lblProc: 'Active Process',
+    keyPointsTitle: 'Key sites on current world:',
+    btnMatchTarget: 'Match Known & NEW Analogs',
+    btnAiBrief: 'AI Briefing on Geology, Resources & Processes',
+    aiReportTitle: 'AI Planetary Scientist Assessment',
+    portalsTitle: 'Connected NASA & Google Scientific Mapping Portals',
+    finderEyebrow: 'Multi-Factor Scoring + New Location Discovery Engine',
+    finderTitle: 'Match Territories & Discover Unexplored Sites',
+    finderSub: 'Filter by minerals, soil composition, wind direction, vegetation, water/ice, and active processes. Click "Discover New Unexplored Territory" to uncover new candidates.',
+    filterPanelTitle: 'Territory Search Parameters',
+    fWorldLbl: 'Target World',
+    optAllWorlds: 'All (Mars + Moon)',
+    fNovLbl: 'Exploration Status',
+    optNovAll: 'All Territories',
+    optNovNew: 'New / Unexplored',
+    optNovOld: 'Classic Testbeds',
+    fMinLbl: 'Minerals / Ores',
+    optAnyMin: 'Any Minerals',
+    optMinIron: 'Iron oxides, pyrite, sulfates, jarosite',
+    optMinTi: 'Ilmenite (titanium), basalts, olivine',
+    optMinSalt: 'Salts, lithium, gypsum, perchlorates',
+    optMinIce: 'Water ice, gas hydrates, brines',
+    optMinAnor: 'Anorthosite, rare earths, carbonates',
+    fSoilLbl: 'Soil / Regolith Composition',
+    optAnySoil: 'Any Soil Composition',
+    optSoilPer: 'Sulfate-perchlorate (organic-poor)',
+    optSoilBas: 'Basaltic tephra & volcanic scoria',
+    optSoilPerm: 'Permafrost & cryogenic ground',
+    optSoilEvap: 'Playa-evaporite salt crust',
+    optSoilAnor: 'Bright anorthositic / carbonate',
+    fProcLbl: 'Dominant Dynamic Process',
+    optAnyProc: 'Any Dynamic Process',
+    optProcDust: 'Dust storms & aeolian erosion (yardangs)',
+    optProcVolc: 'Volcanic activity & lava tubes',
+    optProcIce: 'Ice dynamics, sublimation & subglacial water',
+    optProcWater: 'Hydrological shifts, lake desiccation, brines',
+    fWindDirLbl: 'Wind Direction',
+    optAnyDir: 'Any',
+    fBioLbl: 'Vegetation / Water',
+    optAnyBio: 'Any Profile',
+    optBioArid: 'No vegetation, hyper-arid',
+    optBioIce: 'Ice / cryptoendoliths',
+    optBioBrine: 'Brines / extremophiles',
+    fElevLbl: 'Elevation above sea level',
+    fWindSpdLbl: 'Wind Speed',
+    btnCalcScore: 'Calculate Multi-Factor Score',
+    btnDiscover: 'Discover New Unexplored Territory',
+    btnReset: 'Reset Filters',
+    newAddedBanner: 'New candidate added to catalog & map',
+    procEyebrow: 'Dynamic Planetology · Process Comparison',
+    procTitle: 'Active Processes Comparison: Earth · Mars · Moon',
+    procSub: 'Comparing geological, atmospheric, and cryospheric processes across worlds with direct terrestrial field analogs.',
+    compEyebrow: 'NASA Planetary Fact Sheets & PDS',
+    compTitle: 'Conditions, Minerals & Processes Comparison: Earth · Moon · Mars',
+    thFactor: 'Factor / Process',
+    thEarth: 'Earth (Reference)',
+    thEng: 'Engineering Takeaway',
+    dbEyebrow: 'International & Discovery Registry',
+    dbTitle: 'Catalog of Planetary Analogs & New Candidates',
+    dbSearchPh: 'Search by name, mineral, process, or mission...',
+    newBadge: 'NEW DISCOVERY',
+    openOnMapBtn: 'Show on Map →',
+    sitesCountSuffix: 'SITES IN REGISTRY',
+    gamesEyebrow: 'Interactive 3D Trainers · 2 Games Connected',
+    gamesTitle: 'Space Simulators & Training Missions',
+    gamesSub: 'Switch seamlessly between the updated Moon & Mars colonization simulator (Solar Frontier 3D Simulator-2) and the rocket VAB & orbital flight simulator (Orbital Works).',
+    bridgeReady: 'Both Games Ready · ORBITA-GIS Bridge Active',
+    badgeUpdated: 'UPDATED v2',
+    game1Desc: 'Modular rocket Vehicle Assembly Building (VAB), TWR & Δv calculation, GO/NO-GO readiness poll, Max-Q aerodynamics, and Earth orbit insertion.',
+    game2Desc: 'Surface EVA on the Moon & Mars, laser ilmenite/hematite mining, 3D printing, base construction, dust storms, autonomous drones, and Solar System map.',
+    btnPlayEmbedded: 'Play Here',
+    btnOpenNewTab: 'New Tab ↗',
+    btnSyncContext: 'Send GIS Context',
+    btnReloadGame: 'Restart',
+    btnFullscreen: 'Fullscreen ⛶',
+    btnExitFullscreen: 'Exit Fullscreen ✕'
+  }
+};
+
+// ============================================================================
+// 3. SCREEN & TAB CONTROLLERS
+// ============================================================================
+const TAB_IDS = ['explorer', 'finder', 'processes', 'telemetry', 'database', 'games'];
+
+function showScreen(n) {
+  const s1 = document.getElementById('screen1');
+  const s2 = document.getElementById('screen2');
+  if (n === 2) {
+    s1.classList.add('hidden');
+    s2.classList.remove('hidden');
+    window.scrollTo(0, 0);
+    const exp = document.getElementById('explorer');
+    if (exp && !exp.classList.contains('hidden')) ensureMapInit();
+    requestAnimationFrame(() => { if (mapInstance) mapInstance.invalidateSize(); });
+  } else {
+    if (isGameFullscreen) toggleGameFullscreen(false);
+    s2.classList.add('hidden');
+    s1.classList.remove('hidden');
+    window.scrollTo(0, 0);
+  }
+}
+
+function showTab(id, keepScroll) {
+  TAB_IDS.forEach(k => {
+    const sec = document.getElementById(k);
+    if (sec) sec.classList.toggle('hidden', k !== id);
+  });
+  document.querySelectorAll('#tabStrip .tab-btn').forEach(b => {
+    const on = b.dataset.tab === id;
+    b.classList.toggle('active', on);
+  });
+  if (!keepScroll) window.scrollTo({ top: 0 });
+  if (id === 'explorer' && !document.getElementById('screen2').classList.contains('hidden')) {
+    ensureMapInit();
+    requestAnimationFrame(() => {
+      if (!mapInstance) return;
+      mapInstance.invalidateSize();
+      if (isLiveWindActive) refreshLiveWindField();
+    });
+  }
+  if (id === 'games' && !gameInitialized) {
+    launchIntegratedGame(activeGameKey, false);
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a || a.getAttribute('href') === '#') return;
+  const targetId = a.getAttribute('href').slice(1);
+  const target = document.getElementById(targetId);
+  if (!target || !target.closest('#screen2')) return;
+  e.preventDefault();
+  showScreen(2);
+  if (TAB_IDS.includes(targetId)) showTab(targetId);
+});
+
+function setHeroSlide(slideKey) {
+  ['default', 'mars', 'moon'].forEach(key => {
+    const bg = document.getElementById('heroBg' + key.charAt(0).toUpperCase() + key.slice(1));
+    const ct = document.getElementById('heroContent' + key.charAt(0).toUpperCase() + key.slice(1));
+    if (bg && key === slideKey && bg.dataset.img && !bg.dataset.loaded) {
+      bg.style.backgroundImage += `, url('${bg.dataset.img}')`;
+      bg.dataset.loaded = '1';
+    }
+    if (bg) bg.style.opacity = key === slideKey ? '1' : '0';
+    if (ct) {
+      ct.classList.toggle('hidden', key !== slideKey);
+      ct.classList.toggle('block', key === slideKey);
+    }
+  });
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    const isActive = btn.dataset.nav === slideKey;
+    btn.classList.toggle('active', isActive);
+    btn.classList.toggle('text-white', isActive);
+  });
+}
+
+function openPlanetOnMap(planet) {
+  startPlanet = planet;
+  showScreen(2);
+  showTab('explorer');
+  if (mapInstance && planet !== activePlanet) switchPlanet(planet);
+}
+
+// ============================================================================
+// 4. HIGH-RES NASA TREK, GOOGLE EARTH, MACROSTRAT & LIVE WIND LAYERS
+// ============================================================================
+function getRecentIsoDate(daysBack = 2) {
+  const d = new Date(Date.now() - 86400000 * daysBack);
+  return d.toISOString().split('T')[0];
+}
+
+const wrapLon = (l) => ((l + 180) % 360 + 360) % 360 - 180;
+
+const PLANET_LAYER_CATALOG = {
+  earth: {
+    visual: [
+      {
+        id: 'google_sat',
+        name: { ru: 'Google Earth Satellite (Сверхвысокое разрешение)', en: 'Google Earth Satellite (Ultra High-Res)' },
+        url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        attr: 'Google Earth / Maxar / CNES', maxZoom: 20, filter: '',
+        legend: { ru: ['Google Earth Satellite', 'Детальные спутниковые снимки Земли (до 0.3 м/пикс).'], en: ['Google Earth Satellite', 'High-resolution global satellite imagery (up to 0.3 m/px).'] }
+      },
+      {
+        id: 'google_hybrid',
+        name: { ru: 'Google Hybrid (Спутник + Топонимы и границы)', en: 'Google Hybrid (Satellite + Labels)' },
+        url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        attr: 'Google Maps / Earth', maxZoom: 20, filter: '',
+        legend: { ru: ['Google Hybrid Imagery', 'Спутниковая мозаика с географической привязкой.'], en: ['Google Hybrid Imagery', 'Satellite mosaic with geographic labels.'] }
+      },
+      {
+        id: 'nasa_viirs_live',
+        name: { ru: 'NASA GIBS: VIIRS True Color (Актуальный снимок орбиты)', en: 'NASA GIBS: VIIRS True Color (Recent Orbital Pass)' },
+        baseUrl: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg', dated: true,
+        attr: 'NASA EOSDIS GIBS / Suomi NPP', maxZoom: 9, filter: '',
+        legend: { ru: ['NASA VIIRS True Color (Live Orbit)', 'Актуальная орбитальная съёмка со спутника NASA Suomi NPP.'], en: ['NASA VIIRS True Color (Live Orbit)', 'Recent orbital imagery from NASA Suomi NPP satellite.'] }
+      }
+    ],
+    relief: [
+      {
+        id: 'google_terrain',
+        name: { ru: 'Google Terrain DEM (Рельеф, хребты и изолинии)', en: 'Google Terrain DEM (Relief & Contours)' },
+        url: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+        attr: 'Google Terrain / SRTM', maxZoom: 16, filter: '',
+        legend: { ru: ['Google Terrain DEM', 'Физический рельеф, отмывка склонов и изолинии высот.'], en: ['Google Terrain DEM', 'Physical relief shading and elevation contours.'] }
+      },
+      {
+        id: 'opentopo',
+        name: { ru: 'NASA SRTM / OpenTopoMap DEM (Топографическая)', en: 'NASA SRTM / OpenTopoMap DEM' },
+        url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        attr: 'NASA SRTM / OpenTopoMap', maxZoom: 16, filter: '',
+        legend: { ru: ['NASA SRTM Топография', 'Гипсометрическая карта высот и форм рельефа.'], en: ['NASA SRTM Topography', 'Hypsometric elevation and landform map.'] }
+      }
+    ],
+    geology: [
+      {
+        id: 'macrostrat_geology',
+        name: { ru: 'Macrostrat / USGS Литологическая и геологическая карта (HD)', en: 'Macrostrat / USGS Global Geological & Lithology Map (HD)' },
+        baseUrl: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+        url: 'https://tiles.macrostrat.org/carto/{z}/{x}/{y}.png',
+        overlayOpacity: 0.72,
+        attr: 'Macrostrat / USGS / Geological Surveys', maxZoom: 13, filter: '',
+        legend: {
+          ru: ['Глобальная геологическая карта (Macrostrat / USGS)', 'Отображает возраст пород, вулканические провинции, осадочные бассейны, разломы и литологию.'],
+          en: ['Global Geological Map (Macrostrat / USGS)', 'Displays rock ages, volcanic provinces, sedimentary basins, faults, and lithology.']
+        }
+      },
+      {
+        id: 'nasa_aster_geo',
+        name: { ru: 'Контраст пород (усиленный спутниковый снимок: базальты / солончаки)', en: 'Rock Contrast (enhanced satellite: basalts / salt flats)' },
+        url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        attr: 'Google Earth / Spectral Synthesis', maxZoom: 18, filter: 'map-filter-geology',
+        legend: { ru: ['Спектральный контраст пород', 'Выделяет аридные солончаки, железистые пустыни и вулканические поля.'], en: ['Spectral Rock Contrast', 'Highlights arid salt flats, ferric deserts, and volcanic fields.'] }
+      }
+    ],
+    wind: [
+      {
+        id: 'live_wind_streamlines',
+        name: { ru: 'LIVE Ветровые потоки и шкала скоростей (Windy / Open-Meteo)', en: 'LIVE Wind Streamlines & Speed Scale (Windy / Open-Meteo)' },
+        url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        liveWindMode: true,
+        attr: 'Open-Meteo GFS/ECMWF Live Wind Grid + Google Earth', maxZoom: 14, filter: '',
+        legend: {
+          ru: ['Реальные потоки ветра (Live GFS/ECMWF)', 'Анимированные линии тока ветра в реальном времени по всей видимой области карты.'],
+          en: ['Real-Time Wind Streamlines (Live GFS/ECMWF)', 'Live animated wind streamlines across the visible viewport.']
+        }
+      },
+      {
+        id: 'nasa_aerosol',
+        name: { ru: 'NASA GIBS: MODIS Aerosol + Потоки ветра (Пылевые бури)', en: 'NASA GIBS: MODIS Aerosol + Wind Streamlines' },
+        baseUrl: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Combined_Value_Added_AOD/default/{date}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png', dated: true,
+        overlayOpacity: 0.7,
+        liveWindMode: true,
+        attr: 'NASA GIBS MODIS AOD + Live Wind Field', maxZoom: 8, filter: '',
+        legend: { ru: ['NASA MODIS Dust Aerosol + Live Wind', 'Пылевые шлейфы пустынь в сочетании с живыми потоками ветра.'], en: ['NASA MODIS Dust Aerosol + Live Wind', 'Desert dust plumes combined with live wind streamlines.'] }
+      }
+    ],
+    soil: [
+      {
+        id: 'soilgrids_organic',
+        name: { ru: 'Macrostrat: Почвообразующие породы и грунты', en: 'Macrostrat: Soil Parent Material & Regolith' },
+        baseUrl: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        url: 'https://tiles.macrostrat.org/carto/{z}/{x}/{y}.png',
+        overlayOpacity: 0.45,
+        attr: 'Google Earth / Macrostrat Soil Parent Material', maxZoom: 14, filter: 'map-filter-soil',
+        legend: { ru: ['Почвообразующие породы и грунты', 'Совмещение спутникового грунта с картой материнских пород и эвапоритов.'], en: ['Soil Parent Material & Regolith', 'Combines high-res imagery with parent rock and evaporite strata.'] }
+      },
+      {
+        id: 'nasa_ndvi_overlay',
+        name: { ru: 'NASA GIBS: MODIS Vegetation / Bare Ground (Поверх спутника)', en: 'NASA GIBS: MODIS Vegetation / Bare Ground (Over Satellite)' },
+        baseUrl: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/2024-07-11/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png',
+        overlayOpacity: 0.65,
+        attr: 'NASA GIBS MODIS NDVI + Google Earth', maxZoom: 9, filter: '',
+        legend: { ru: ['NASA MODIS NDVI поверх спутника', 'Зелёный — растительность; открытые зоны — оголённый грунт, пески и ледники.'], en: ['NASA MODIS NDVI over Satellite', 'Green shows vegetation; open areas reveal bare soil, sand, and glaciers.'] }
+      }
+    ],
+    illum: [
+      {
+        id: 'nasa_lst_overlay',
+        name: { ru: 'NASA GIBS: MODIS Land Surface Temp (Тепловая карта)', en: 'NASA GIBS: MODIS Land Surface Temp' },
+        baseUrl: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Land_Surface_Temp_Day/default/{date}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png', dated: true,
+        overlayOpacity: 0.72,
+        attr: 'NASA GIBS MODIS LST + Google Earth', maxZoom: 8, filter: '',
+        legend: { ru: ['NASA MODIS Тепловая карта поверхности', 'Актуальный дневной прогрев поверхности и тепловая инерция грунтов.'], en: ['NASA MODIS Land Surface Temperature', 'Recent daytime surface heating and soil thermal inertia.'] }
+      }
+    ]
+  },
+  mars: {
+    visual: [
+      {
+        id: 'mars_trek_viking',
+        name: { ru: 'NASA Mars Trek: Viking MDIM 2.1 Color Mosaic (HD)', en: 'NASA Mars Trek: Viking MDIM 2.1 Color Mosaic (HD)' },
+        url: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        attr: 'NASA JPL Mars Trek / USGS (232m/px)', maxZoom: 9, filter: '',
+        legend: { ru: ['NASA Mars Trek Viking MDIM 2.1 (232 м/пикс)', 'Официальная цветная орбитальная мозаика NASA JPL высокой чёткости.'], en: ['NASA Mars Trek Viking MDIM 2.1 (232 m/px)', 'Official high-definition color orbital mosaic from NASA JPL.'] }
+      },
+      {
+        id: 'mars_trek_mro_ctx',
+        name: { ru: 'NASA / USGS Astrogeology: Mars Shaded Relief & Craters', en: 'NASA / USGS Astrogeology: Mars Shaded Relief & Craters' },
+        url: 'https://cartocdn-gusc.global.ssl.fastly.net/opmbuilder/api/v1/map/named/opm-mars-basemap-v0-2/all/{z}/{x}/{y}.png',
+        attr: 'NASA / USGS / OpenPlanetaryMap', maxZoom: 9, filter: '',
+        legend: { ru: ['NASA / USGS Mars Basemap', 'Детализированная карта кратеров, каньонов и вулканов Марса.'], en: ['NASA / USGS Mars Basemap', 'Detailed basemap of Martian craters, canyons, and volcanoes.'] }
+      }
+    ],
+    relief: [
+      {
+        id: 'mars_trek_mola_hillshade',
+        name: { ru: 'NASA Mars Trek: MOLA Colorized Hillshade DEM (HD)', en: 'NASA Mars Trek: MOLA Colorized Hillshade DEM (HD)' },
+        url: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        attr: 'NASA JPL Mars Trek / MOLA Science Team (463m/px)', maxZoom: 8, filter: '',
+        legend: { ru: ['NASA MOLA Colorized Hillshade (463 м/пикс)', 'Высокоточная лазерная альтиметрия Марса с отмывкой рельефа.'], en: ['NASA MOLA Colorized Hillshade (463 m/px)', 'High-precision laser altimetry of Mars with shaded relief.'] }
+      }
+    ],
+    geology: [
+      {
+        id: 'mars_geo_usgs',
+        name: { ru: 'USGS SIM 3292 / NASA Trek: Геологические провинции и минералы Марса', en: 'USGS SIM 3292 / NASA Trek: Mars Geologic & Mineral Provinces' },
+        baseUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        url: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        overlayOpacity: 0.65,
+        attr: 'NASA JPL Mars Trek / USGS Astrogeology', maxZoom: 9, filter: 'map-filter-geology',
+        legend: { ru: ['Геология и минеральные провинции Марса', 'Разделяет древние ноахийские нагорья (глины/карбонаты), гесперийские сульфаты и амазонийские базальты.'], en: ['Mars Geologic & Mineral Provinces', 'Separates ancient Noachian highlands (clays/carbonates), Hesperian sulfates, and Amazonian basalts.'] }
+      }
+    ],
+    illum: [
+      {
+        id: 'mars_trek_themis',
+        name: { ru: 'NASA Mars Trek: Odyssey THEMIS IR Day Mosaic (100m/px)', en: 'NASA Mars Trek: Odyssey THEMIS IR Day Mosaic (100m/px)' },
+        url: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MO_THEMIS-IR-Day_mosaic_global_100m_v12/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        attr: 'NASA JPL Mars Trek / ASU THEMIS (100m/px)', maxZoom: 10, filter: '',
+        legend: { ru: ['NASA THEMIS Infrared Day Mosaic (100 м/пикс)', 'Сверхдетальная инфракрасная карта тепловой инерции поверхности Марса.'], en: ['NASA THEMIS Infrared Day Mosaic (100 m/px)', 'Ultra-detailed infrared thermal inertia mosaic of Mars.'] }
+      }
+    ]
+  },
+  moon: {
+    visual: [
+      {
+        id: 'moon_trek_wac',
+        name: { ru: 'NASA Moon Trek: LRO WAC Global Mosaic (100m/px HD)', en: 'NASA Moon Trek: LRO WAC Global Mosaic (100m/px HD)' },
+        url: 'https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        attr: 'NASA JPL Moon Trek / ASU LRO WAC (100m/px)', maxZoom: 9, filter: '',
+        legend: { ru: ['NASA LRO WAC Global Mosaic (100 м/пикс)', 'Официальная орбитальная съёмка Lunar Reconnaissance Orbiter.'], en: ['NASA LRO WAC Global Mosaic (100 m/px)', 'Official orbital imagery from Lunar Reconnaissance Orbiter.'] }
+      }
+    ],
+    relief: [
+      {
+        id: 'moon_trek_lola',
+        name: { ru: 'NASA Moon Trek: LRO LOLA Colorized Hillshade DEM (HD)', en: 'NASA Moon Trek: LRO LOLA Colorized Hillshade DEM (HD)' },
+        url: 'https://trek.nasa.gov/tiles/Moon/EQ/LRO_LOLA_ClrShade_Global_128ppd_v04/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        attr: 'NASA JPL Moon Trek / LOLA Science Team', maxZoom: 8, filter: '',
+        legend: { ru: ['NASA LOLA Colorized Elevation DEM', 'Лазерная топография лунных морей, кратеров и центральных горок.'], en: ['NASA LOLA Colorized Elevation DEM', 'Laser topography of lunar maria, craters, and central peaks.'] }
+      }
+    ],
+    geology: [
+      {
+        id: 'moon_clementine_uvvis',
+        name: { ru: 'NASA Moon Trek: Clementine UVVIS Mineralogy (FeO / TiO₂)', en: 'NASA Moon Trek: Clementine UVVIS Mineralogy (FeO / TiO₂)' },
+        url: 'https://trek.nasa.gov/tiles/Moon/EQ/Clementine_UVVIS_ClrRatio_Global_200m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg',
+        attr: 'NASA JPL Moon Trek / Clementine UVVIS (200m/px)', maxZoom: 8, filter: '',
+        legend: { ru: ['NASA Clementine UVVIS Mineralogy (200 м/пикс)', 'Синий — высокотитанистые базальты (ильменит); красный/жёлтый — анортозитовые материки.'], en: ['NASA Clementine UVVIS Mineralogy (200 m/px)', 'Blue indicates high-titanium basalts (ilmenite); red/yellow indicates highland anorthosite.'] }
+      }
+    ]
+  }
+};
+
+// ============================================================================
+// 5. MAP ENGINE, MARKERS, WIND STREAMLINES & TELEMETRY
+// ============================================================================
+let activePlanet = 'earth';
+let activeTheme = 'visual';
+let currentTarget = { ...EARTH_SITES[0], planet: 'earth' };
+let mapInstance = null;
+let currentBaseLayer = null;
+let currentOverlayLayer = null;
+let markersGroup = null;
+let windVectorsGroup = null;
+let customClickMarker = null;
+
+let windGridData = [];
+let windAnimFrame = null;
+let windParticles = [];
+let isLiveWindActive = false;
+
+let mapReady = false;
+let startPlanet = 'earth';
+let activeCfg = null;
+let legendNoteKey = '';
+let prevPlanet = null;
+
+const LEGEND_NOTES = {
+  wind: { ru: 'нет связи с Open-Meteo — показан оценочный ветер', en: 'Open-Meteo unreachable — estimated wind shown' },
+  fallback: { ru: 'основной сервер тайлов недоступен — запасная карта', en: 'primary tile server unavailable — backup basemap' },
+  date: { ru: 'свежий снимок ещё не опубликован — показана предыдущая дата', en: 'newest imagery not published yet — showing an earlier date' }
+};
+const PLANET_FALLBACK = {
+  mars: 'https://cartocdn-gusc.global.ssl.fastly.net/opmbuilder/api/v1/map/named/opm-mars-basemap-v0-2/all/{z}/{x}/{y}.png',
+  moon: 'https://cartocdn-gusc.global.ssl.fastly.net/opmbuilder/api/v1/map/named/opm-moon-basemap-v0-1/all/{z}/{x}/{y}.png'
+};
+
+function ensureMapInit() {
+  if (mapReady) return;
+  mapReady = true;
+  initMap();
+}
+
+function initMap() {
+  mapInstance = L.map('mainMap', { center: [34, 62], zoom: 3, minZoom: 2, maxZoom: 18, worldCopyJump: true });
+  markersGroup = L.layerGroup().addTo(mapInstance);
+  windVectorsGroup = L.layerGroup().addTo(mapInstance);
+
+  const coordsEl = document.getElementById('cursorCoords');
+  let cursorRaf = 0, lastCursor = null;
+  mapInstance.on('mousemove', (e) => {
+    lastCursor = e.latlng;
+    if (cursorRaf) return;
+    cursorRaf = requestAnimationFrame(() => {
+      cursorRaf = 0;
+      coordsEl.textContent = `${lastCursor.lat.toFixed(2)}°, ${wrapLon(lastCursor.lng).toFixed(2)}°`;
+    });
+  });
+
+  mapInstance.on('moveend', () => {
+    if (isLiveWindActive && activePlanet === 'earth') {
+      clearWindCanvas();
+      buildWindField();
+      scheduleWindRefresh();
+    }
+  });
+
+  mapInstance.on('click', async (e) => {
+    const lat = parseFloat(e.latlng.lat.toFixed(3));
+    const lon = parseFloat(wrapLon(e.latlng.lng).toFixed(3));
+    if (customClickMarker) mapInstance.removeLayer(customClickMarker);
+    customClickMarker = L.circleMarker([lat, lon], {
+      radius: 8, color: '#38bdf8', fillColor: '#635bff', fillOpacity: 0.9, weight: 2
+    }).addTo(mapInstance);
+
+    if (activePlanet === 'earth') await inspectEarthCoordinates(lat, lon);
+    else inspectPlanetaryCoordinates(activePlanet, lat, lon);
+  });
+
+  if ('ResizeObserver' in window) {
+    let t = 0;
+    new ResizeObserver(() => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        if (!mapInstance) return;
+        mapInstance.invalidateSize();
+        if (isLiveWindActive) { buildWindField(); startWindParticleAnimation(); }
+      }, 200);
+    }).observe(document.getElementById('mapWrapper'));
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && isLiveWindActive) startWindParticleAnimation();
+  });
+
+  switchPlanet(startPlanet);
+}
+
+function updateAvailableThemeButtons() {
+  const availableThemes = Object.keys(PLANET_LAYER_CATALOG[activePlanet]);
+  if (!availableThemes.includes(activeTheme)) {
+    activeTheme = availableThemes[0];
+  }
+
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    const t = btn.dataset.theme;
+    const isAvail = availableThemes.includes(t);
+    btn.classList.toggle('hidden', !isAvail);
+    const isOn = t === activeTheme;
+    btn.classList.toggle('bg-indigo-600', isOn);
+    btn.classList.toggle('text-white', isOn);
+    btn.classList.toggle('bg-slate-900', !isOn);
+    btn.classList.toggle('text-slate-300', !isOn);
+  });
+
+  const windWrap = document.getElementById('windToggleWrapper');
+  if (windWrap) windWrap.classList.toggle('hidden', activePlanet === 'moon');
+}
+
+function populateSpecificLayers() {
+  updateAvailableThemeButtons();
+  const sel = document.getElementById('specificLayerSelect');
+  const list = PLANET_LAYER_CATALOG[activePlanet][activeTheme] || PLANET_LAYER_CATALOG[activePlanet].visual;
+  sel.innerHTML = list.map((l, idx) => `<option value="${idx}">${l.name[lang]}</option>`).join('');
+  applySelectedLayer(0);
+}
+
+function baseNativeZoom(cfg) {
+  if (cfg.baseNative) return cfg.baseNative;
+  if (/lyrs=p/.test(cfg.baseUrl)) return 15;
+  if (/trek\.nasa\.gov/.test(cfg.baseUrl)) return 8;
+  return 18;
+}
+
+function renderLegend() {
+  if (!activeCfg) return;
+  document.getElementById('legendTitle').textContent = activeCfg.legend[lang][0];
+  const note = legendNoteKey ? ` ⚠ ${LEGEND_NOTES[legendNoteKey][lang]}` : '';
+  document.getElementById('legendDesc').textContent = activeCfg.legend[lang][1] + note;
+}
+
+function relabelLayerSelect() {
+  const list = PLANET_LAYER_CATALOG[activePlanet][activeTheme] || PLANET_LAYER_CATALOG[activePlanet].visual;
+  Array.from(document.getElementById('specificLayerSelect').options).forEach((o, i) => {
+    if (list[i]) o.textContent = list[i].name[lang];
+  });
+  renderLegend();
+}
+
+function attachTileFallback(layer, cfg) {
+  let errors = 0, daysBack = 2, usedFallback = false;
+  layer.on('load', () => { errors = 0; });
+  layer.on('tileerror', () => {
+    if (++errors < 6) return;
+    errors = 0;
+    if (cfg.dated && daysBack < 8) {
+      daysBack++;
+      legendNoteKey = 'date';
+      layer.setUrl(cfg.url.replace('{date}', getRecentIsoDate(daysBack)));
+      renderLegend();
+    } else if (!cfg.dated && !usedFallback && PLANET_FALLBACK[activePlanet]) {
+      usedFallback = true;
+      legendNoteKey = 'fallback';
+      layer.options.maxNativeZoom = 7;
+      layer.setUrl(PLANET_FALLBACK[activePlanet]);
+      renderLegend();
+    }
+  });
+}
+
+function applySelectedLayer(idx) {
+  const list = PLANET_LAYER_CATALOG[activePlanet][activeTheme] || PLANET_LAYER_CATALOG[activePlanet].visual;
+  const cfg = list[idx] || list[0];
+  activeCfg = cfg;
+  legendNoteKey = '';
+
+  if (currentBaseLayer) { mapInstance.removeLayer(currentBaseLayer); currentBaseLayer = null; }
+  if (currentOverlayLayer) { mapInstance.removeLayer(currentOverlayLayer); currentOverlayLayer = null; }
+
+  const wrapper = document.getElementById('mapWrapper');
+  wrapper.classList.remove('map-filter-geology', 'map-filter-soil');
+  if (cfg.filter) wrapper.classList.add(cfg.filter);
+
+  const isEarth = activePlanet === 'earth';
+  const mapMax = isEarth ? 18 : cfg.maxZoom + 2;
+  mapInstance.setMaxZoom(mapMax);
+  const noWrap = !isEarth;
+  const url = cfg.dated ? cfg.url.replace('{date}', getRecentIsoDate(2)) : cfg.url;
+
+  if (cfg.baseUrl) {
+    currentBaseLayer = L.tileLayer(cfg.baseUrl, { maxZoom: mapMax, maxNativeZoom: baseNativeZoom(cfg), noWrap }).addTo(mapInstance);
+    currentOverlayLayer = L.tileLayer(url, {
+      attribution: cfg.attr, maxZoom: mapMax, maxNativeZoom: cfg.maxZoom, noWrap,
+      opacity: cfg.overlayOpacity ?? 0.72
+    }).addTo(mapInstance);
+  } else {
+    currentBaseLayer = L.tileLayer(url, { attribution: cfg.attr, maxZoom: mapMax, maxNativeZoom: cfg.maxZoom, noWrap }).addTo(mapInstance);
+  }
+  attachTileFallback(currentOverlayLayer || currentBaseLayer, cfg);
+  renderLegend();
+
+  isLiveWindActive = Boolean(cfg.liveWindMode && isEarth);
+  const canvas = document.getElementById('windParticleCanvas');
+  const bar = document.getElementById('windColorBar');
+  clearTimeout(windMoveTimer);
+  if (isLiveWindActive) {
+    canvas.classList.remove('hidden');
+    bar.classList.remove('hidden');
+    refreshLiveWindField();
+  } else {
+    canvas.classList.add('hidden');
+    bar.classList.add('hidden');
+    stopWindAnimation();
+    if (windFetchCtl) { windFetchCtl.abort(); windFetchCtl = null; }
+  }
+}
+
+function createPin(color, isNew) {
+  const ring = isNew ? 'box-shadow:0 0 0 4px rgba(16,185,129,0.45), 0 0 12px #10b981;' : `box-shadow:0 0 10px ${color};`;
+  return L.divIcon({
+    className: 'custom-pin',
+    html: `<div style="width:15px;height:15px;border-radius:50%;background:${color};border:2.5px solid #fff;${ring}"></div>`,
+    iconSize: [15, 15], iconAnchor: [7.5, 7.5]
+  });
+}
+
+function renderWindVectors() {
+  windVectorsGroup.clearLayers();
+  if (!document.getElementById('windVectorsToggle').checked) return;
+  if (activePlanet === 'moon') return;
+
+  const dirAngles = { N: 180, NE: 225, E: 270, SE: 315, S: 0, SW: 45, W: 90, NW: 135, CALM: 0 };
+  const pool = activePlanet === 'earth' ? EARTH_SITES : MARS_LANDMARKS;
+
+  pool.forEach(s => {
+    if (!s.wind || s.wind <= 0) return;
+    const deg = dirAngles[s.windDir] || 90;
+    const icon = L.divIcon({
+      className: 'wind-arrow',
+      html: `<div style="transform:rotate(${deg}deg);color:#38bdf8;font-size:16px;font-weight:bold;text-shadow:0 0 6px #000;" title="${s.windDirLabel[lang]} · ${s.wind} km/h">↑</div>`,
+      iconSize: [18, 18], iconAnchor: [9, 9]
+    });
+    L.marker([s.lat + 0.9, s.lon + 0.9], { icon, interactive: false }).addTo(windVectorsGroup);
+  });
+}
+
+function switchPlanet(planet) {
+  const changed = planet !== prevPlanet;
+  prevPlanet = planet;
+  activePlanet = planet;
+
+  document.querySelectorAll('.planet-tab').forEach(btn => {
+    const on = btn.dataset.planet === planet;
+    btn.classList.toggle('bg-indigo-600', on);
+    btn.classList.toggle('text-white', on);
+    btn.classList.toggle('text-slate-300', !on);
+  });
+
+  if (customClickMarker) { mapInstance.removeLayer(customClickMarker); customClickMarker = null; }
+
+  const extNasa = document.getElementById('externalNasaLink');
+  const extGoogle = document.getElementById('externalGoogleLink');
+  if (planet === 'earth') {
+    extNasa.href = 'https://worldview.earthdata.nasa.gov/';
+    extNasa.textContent = 'NASA Worldview ↗';
+    extGoogle.href = 'https://earth.google.com/web/';
+    extGoogle.textContent = 'Google Earth ↗';
+  } else if (planet === 'mars') {
+    extNasa.href = 'https://trek.nasa.gov/mars/';
+    extNasa.textContent = 'NASA Mars Trek ↗';
+    extGoogle.href = 'https://www.google.com/mars/';
+    extGoogle.textContent = 'Google Mars ↗';
+  } else {
+    extNasa.href = 'https://trek.nasa.gov/moon/';
+    extNasa.textContent = 'NASA Moon Trek ↗';
+    extGoogle.href = 'https://www.google.com/moon/';
+    extGoogle.textContent = 'Google Moon ↗';
+  }
+
+  populateSpecificLayers();
+
+  if (changed) {
+    if (planet === 'mars') mapInstance.setView([10, 45], 2);
+    else if (planet === 'moon') mapInstance.setView([-15, 10], 2);
+    else mapInstance.setView([34, 62], 3);
+  }
+
+  buildMarkersAndPresets(planet);
+  const first = planet === 'earth' ? EARTH_SITES[0] : planet === 'mars' ? MARS_LANDMARKS[0] : MOON_LANDMARKS[0];
+  selectSite(first, planet);
+  renderWindVectors();
+}
+
+function buildMarkersAndPresets(planet) {
+  markersGroup.clearLayers();
+  const presets = document.getElementById('planetPresetsList');
+  presets.innerHTML = '';
+
+  if (planet === 'earth') {
+    document.getElementById('activeMapBadge').textContent = 'EARTH · GOOGLE / NASA / MACROSTRAT';
+    EARTH_SITES.forEach(site => {
+      const col = site.isNew ? '#10b981' : site.world === 'mars' ? '#f97316' : '#38bdf8';
+      const m = L.marker([site.lat, site.lon], { icon: createPin(col, site.isNew) })
+        .addTo(markersGroup)
+        .bindPopup(`<b>${site.name[lang]}</b><br><span style="font-size:11px;color:#94a3b8">${site.minerals[lang]}</span>`);
+      m.on('click', () => selectSite(site, 'earth'));
+    });
+
+    EARTH_SITES.slice(0, 7).forEach(site => {
+      const btn = document.createElement('button');
+      btn.className = 'px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-indigo-600/30 border border-slate-700 text-[11px] text-slate-200 transition cursor-pointer';
+      btn.textContent = site.name[lang].split(',')[0];
+      btn.onclick = () => { mapInstance.setView([site.lat, site.lon], 7); selectSite(site, 'earth'); };
+      presets.appendChild(btn);
+    });
+  } else {
+    const isMars = planet === 'mars';
+    const list = isMars ? MARS_LANDMARKS : MOON_LANDMARKS;
+    document.getElementById('activeMapBadge').textContent = isMars ? 'MARS · NASA TREK / MOLA / THEMIS' : 'MOON · NASA LRO WAC / LOLA';
+    list.forEach(lm => {
+      const m = L.marker([lm.lat, lm.lon], { icon: createPin(isMars ? '#f97316' : '#e2e8f0', false) })
+        .addTo(markersGroup)
+        .bindPopup(`<b>${lm.name[lang]}</b>`);
+      m.on('click', () => selectSite(lm, planet));
+
+      const btn = document.createElement('button');
+      btn.className = isMars
+        ? 'px-2.5 py-1 rounded-lg bg-orange-950/40 hover:bg-orange-600/30 border border-orange-500/30 text-[11px] text-orange-200 cursor-pointer'
+        : 'px-2.5 py-1 rounded-lg bg-slate-800/70 hover:bg-slate-700 border border-slate-600 text-[11px] text-slate-200 cursor-pointer';
+      btn.textContent = lm.name[lang].split('(')[0].trim();
+      btn.onclick = () => { mapInstance.setView([lm.lat, lm.lon], 4); selectSite(lm, planet); };
+      presets.appendChild(btn);
+    });
+  }
+}
+
+// ============================================================================
+// 5B. REAL-TIME WINDY-STYLE STREAMLINES & SPEED HEATMAP
+// ============================================================================
+const WIND_CELL = 36;
+let windField = null;
+let windMoveTimer = 0;
+let windFetchCtl = null;
+const _wind = { vx: 10, vy: -4, speed: 12 };
+
+async function fetchJson(url, ms = 8000, ctl = new AbortController()) {
+  const timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctl.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function clearWindCanvas() {
+  const c = document.getElementById('windParticleCanvas');
+  if (c.width && c.height) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+}
+
+function stopWindAnimation() {
+  if (windAnimFrame) { cancelAnimationFrame(windAnimFrame); windAnimFrame = null; }
+}
+
+function scheduleWindRefresh() {
+  clearTimeout(windMoveTimer);
+  windMoveTimer = setTimeout(refreshLiveWindField, 450);
+}
+
+async function refreshLiveWindField() {
+  const wrapper = document.getElementById('mapWrapper');
+  if (!isLiveWindActive || !mapInstance || activePlanet !== 'earth' || !wrapper.offsetParent) return;
+
+  const b = mapInstance.getBounds();
+  let s = Math.max(-80, b.getSouth());
+  const n = Math.min(80, b.getNorth());
+  if (n - s < 2) s = n - 2;
+  const w = b.getWest();
+  const e = b.getEast();
+
+  const rows = 5, cols = 6;
+  const lats = [], lons = [];
+  for (let r = 0; r < rows; r++) {
+    const lat = s + (n - s) * (r / (rows - 1));
+    for (let c = 0; c < cols; c++) {
+      lats.push(lat.toFixed(2));
+      lons.push(wrapLon(w + (e - w) * (c / (cols - 1))).toFixed(2));
+    }
+  }
+
+  if (windFetchCtl) windFetchCtl.abort();
+  const ctl = windFetchCtl = new AbortController();
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats.join(',')}&longitude=${lons.join(',')}&current=wind_speed_10m,wind_direction_10m`;
+    const json = await fetchJson(url, 9000, ctl);
+    const list = Array.isArray(json) ? json : [json];
+    if (list.length !== lats.length || !list[0].current) throw new Error('bad wind payload');
+
+    windGridData = list.map((item, idx) => {
+      const spd = item.current?.wind_speed_10m ?? 14;
+      const dir = item.current?.wind_direction_10m ?? 225;
+      const flowRad = ((dir + 180) % 360) * Math.PI / 180;
+      return {
+        lat: parseFloat(lats[idx]),
+        lon: parseFloat(lons[idx]),
+        speed: spd,
+        vx: Math.sin(flowRad) * spd,
+        vy: -Math.cos(flowRad) * spd
+      };
+    });
+    legendNoteKey = '';
+  } catch (_) {
+    if (ctl !== windFetchCtl) return;
+    if (!windGridData.length) {
+      windGridData = lats.map((latStr, idx) => ({
+        lat: parseFloat(latStr), lon: parseFloat(lons[idx]), speed: 18, vx: 14, vy: -6
+      }));
+    }
+    legendNoteKey = 'wind';
+  }
+  if (ctl !== windFetchCtl) return;
+  renderLegend();
+  buildWindField();
+  startWindParticleAnimation();
+}
+
+function buildWindField() {
+  const wrapper = document.getElementById('mapWrapper');
+  if (!mapInstance || !windGridData.length || !wrapper.clientWidth) return;
+  const cols = Math.ceil(wrapper.clientWidth / WIND_CELL) + 1;
+  const rows = Math.ceil(wrapper.clientHeight / WIND_CELL) + 1;
+  const vx = new Float32Array(cols * rows), vy = new Float32Array(cols * rows), sp = new Float32Array(cols * rows);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const ll = mapInstance.containerPointToLatLng([c * WIND_CELL, r * WIND_CELL]);
+      let sumW = 0, ax = 0, ay = 0, as = 0;
+      for (let i = 0; i < windGridData.length; i++) {
+        const p = windGridData[i];
+        const dLat = ll.lat - p.lat;
+        const dLon = ((ll.lng - p.lon + 540) % 360 + 360) % 360 - 180;
+        const wgt = 1 / (dLat * dLat + dLon * dLon + 0.25);
+        sumW += wgt; ax += p.vx * wgt; ay += p.vy * wgt; as += p.speed * wgt;
+      }
+      const k = r * cols + c;
+      vx[k] = ax / sumW; vy[k] = ay / sumW; sp[k] = as / sumW;
+    }
+  }
+  windField = { cols, rows, vx, vy, sp };
+}
+
+function sampleWindAtPixel(x, y) {
+  if (!windField) return _wind;
+  const c = Math.min(windField.cols - 1, Math.max(0, Math.round(x / WIND_CELL)));
+  const r = Math.min(windField.rows - 1, Math.max(0, Math.round(y / WIND_CELL)));
+  const k = r * windField.cols + c;
+  _wind.vx = windField.vx[k]; _wind.vy = windField.vy[k]; _wind.speed = windField.sp[k];
+  return _wind;
+}
+
+function windSpeedToColor(spd, alpha = 0.88) {
+  if (spd < 15) return `rgba(59, 130, 246, ${alpha})`;
+  if (spd < 30) return `rgba(16, 185, 129, ${alpha})`;
+  if (spd < 50) return `rgba(234, 179, 8, ${alpha})`;
+  if (spd < 75) return `rgba(239, 68, 68, ${alpha})`;
+  return `rgba(168, 85, 247, ${alpha})`;
+}
+
+function startWindParticleAnimation() {
+  stopWindAnimation();
+  const canvas = document.getElementById('windParticleCanvas');
+  const wrapper = document.getElementById('mapWrapper');
+  if (!isLiveWindActive || !wrapper.clientWidth || !wrapper.clientHeight) return;
+  canvas.width = wrapper.clientWidth;
+  canvas.height = wrapper.clientHeight;
+  const ctx = canvas.getContext('2d');
+  if (!windField) buildWindField();
+
+  const count = Math.min(420, Math.round(canvas.width * canvas.height / 1500));
+  windParticles = Array.from({ length: count }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    age: Math.floor(Math.random() * 80),
+    maxAge: 55 + Math.floor(Math.random() * 45)
+  }));
+
+  function frame() {
+    if (!isLiveWindActive || document.hidden || !wrapper.offsetParent) { windAnimFrame = null; return; }
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.91)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'source-over';
+
+    for (let i = 0; i < windParticles.length; i++) {
+      const p = windParticles[i];
+      if (p.age >= p.maxAge || p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+        p.x = Math.random() * canvas.width;
+        p.y = Math.random() * canvas.height;
+        p.age = 0;
+      }
+      const vec = sampleWindAtPixel(p.x, p.y);
+      const nx = p.x + vec.vx * 0.085;
+      const ny = p.y + vec.vy * 0.085;
+
+      ctx.beginPath();
+      ctx.strokeStyle = windSpeedToColor(vec.speed, 0.92);
+      ctx.lineWidth = vec.speed > 30 ? 2.1 : 1.5;
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(nx, ny);
+      ctx.stroke();
+
+      p.x = nx;
+      p.y = ny;
+      p.age++;
+    }
+    windAnimFrame = requestAnimationFrame(frame);
+  }
+  windAnimFrame = requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// 6. TELEMETRY & LOCATION-AWARE POINT INSPECTOR
+// ============================================================================
+const WIND_CODES = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+function degToCompass(deg, l = lang) {
+  const dirsRu = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+  const idx = Math.round(((deg % 360) / 45)) % 8;
+  return `${l === 'ru' ? dirsRu[idx] : WIND_CODES[idx]} (${Math.round(deg)}°)`;
+}
+
+const telemetryCache = new Map();
+let inspectorBusy = 0;
+let selectToken = 0;
+
+async function loadEarthTelemetry(lat, lon) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const hit = telemetryCache.get(key);
+  if (hit && Date.now() - hit.t < 600000) return hit.v;
+
+  const [wx, el] = await Promise.allSettled([
+    fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m`),
+    fetchJson(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`)
+  ]);
+  const cur = wx.status === 'fulfilled' ? wx.value?.current : null;
+  const e0 = el.status === 'fulfilled' ? el.value?.elevation?.[0] : null;
+  const v = {
+    temp: cur?.temperature_2m ?? null,
+    windSpd: cur?.wind_speed_10m ?? null,
+    windDeg: cur?.wind_direction_10m ?? null,
+    elev: typeof e0 === 'number' ? Math.round(e0) : null
+  };
+  if (cur || v.elev !== null) telemetryCache.set(key, { t: Date.now(), v });
+  return v;
+}
+
+async function fetchLiveEarthTelemetry(lat, lon, site) {
+  const loader = document.getElementById('inspectorLoading');
+  inspectorBusy++;
+  loader.classList.remove('hidden');
+  try {
+    const t = await loadEarthTelemetry(lat, lon);
+    return {
+      elev: t.elev ?? site.elev ?? 0,
+      temp: t.temp,
+      windSpd: t.windSpd ?? site.wind ?? 0,
+      windDeg: t.windDeg,
+      live: t.temp !== null
+    };
+  } finally {
+    if (--inspectorBusy <= 0) { inspectorBusy = 0; loader.classList.add('hidden'); }
+  }
+}
+
+function renderEarthTelemetry(site, tel) {
+  const unitM = lang === 'ru' ? 'м' : 'm';
+  const unitKmh = lang === 'ru' ? 'км/ч' : 'km/h';
+  document.getElementById('liveElev').textContent = `${Math.round(tel.elev).toLocaleString()} ${unitM} · ${site.slope}°`;
+  document.getElementById('liveTemp').textContent = tel.live ? `${tel.temp} °C (Live)` : (lang === 'ru' ? 'нет данных' : 'n/a');
+  document.getElementById('liveWind').textContent = tel.windDeg !== null
+    ? `${degToCompass(tel.windDeg)} · ${tel.windSpd} ${unitKmh}`
+    : `${site.windDirLabel[lang]} · ${site.wind} ${unitKmh}`;
+}
+
+async function selectSite(site, planet) {
+  currentTarget = { ...site, planet };
+  const token = ++selectToken;
+  const unitM = lang === 'ru' ? 'м' : 'm';
+  const unitKmh = lang === 'ru' ? 'км/ч' : 'km/h';
+
+  document.getElementById('selectedTargetName').textContent = site.name[lang];
+  const tag = site.isNew ? ` · ${I18N[lang].newBadge}` : '';
+  document.getElementById('selectedTargetCoords').textContent = `${site.lat.toFixed(2)}°, ${site.lon.toFixed(2)}° · ${planet.toUpperCase()}${tag}`;
+  document.getElementById('selectedTargetDesc').textContent = site.desc[lang];
+  document.getElementById('liveVeg').textContent = site.veg[lang];
+  document.getElementById('liveWater').textContent = site.waterIce[lang];
+  document.getElementById('liveMinerals').textContent = site.minerals[lang];
+  document.getElementById('liveSoilComp').textContent = site.soilComp[lang];
+  document.getElementById('liveProcess').textContent = site.processDesc[lang];
+
+  if (planet === 'earth') {
+    const tel = await fetchLiveEarthTelemetry(site.lat, site.lon, site);
+    if (token !== selectToken) return;
+    renderEarthTelemetry(site, tel);
+  } else if (planet === 'mars') {
+    const estTemp = Math.round(-55 - Math.abs(site.lat) * 0.45);
+    document.getElementById('liveElev').textContent = `${site.elev.toLocaleString()} ${unitM} (MOLA) · ${site.slope}°`;
+    document.getElementById('liveTemp').textContent = `${estTemp} °C (Sol)`;
+    document.getElementById('liveWind').textContent = `${site.windDirLabel[lang]} · ${site.wind} ${unitKmh}`;
+  } else {
+    const estTemp = Math.abs(site.lat) > 75 ? '-195 °C (PSR)' : '+105 °C (Day)';
+    document.getElementById('liveElev').textContent = `${site.elev.toLocaleString()} ${unitM} (LOLA) · ${site.slope}°`;
+    document.getElementById('liveTemp').textContent = estTemp;
+    document.getElementById('liveWind').textContent = site.windDirLabel[lang];
+  }
+  updateGameExternalLinks();
+}
+
+async function fetchMacrostratDesc(lat, lon) {
+  try {
+    const j = await fetchJson(`https://macrostrat.org/api/v2/geologic_units/map?lat=${lat}&lng=${lon}`, 6000);
+    const u = j?.success?.data?.[0];
+    const parts = u ? [u.name || u.strat_name, u.lith || u.rocktype, u.age || u.t_int_name].filter(Boolean) : [];
+    if (!parts.length) return { ru: '', en: '' };
+    const txt = parts.join(' · ');
+    return { ru: `Геология (Macrostrat): ${txt}. `, en: `Geology (Macrostrat): ${txt}. ` };
+  } catch (_) {
+    return { ru: '', en: '' };
+  }
+}
+
+async function inspectEarthCoordinates(lat, lon) {
+  const [tel, geo] = await Promise.all([
+    fetchLiveEarthTelemetry(lat, lon, { elev: 0, wind: 16 }),
+    fetchMacrostratDesc(lat, lon)
+  ]);
+  const windDeg = tel.windDeg ?? 225;
+  const absLat = Math.abs(lat);
+  const isPolar = absLat > 62;
+  const isHigh = tel.elev > 2200;
+  const isSubtropicalArid = (absLat >= 15 && absLat <= 42) && ((lon >= -120 && lon <= -65) || (lon >= -15 && lon <= 95) || (lon >= 115 && lon <= 145));
+  const isEquatorial = absLat < 15;
+
+  let mineralCat = 'iron_sulfates';
+  let minerals = { ru: 'Кварц, полевые шпаты, глинистые минералы, оксиды железа', en: 'Quartz, feldspars, clay minerals, iron oxides' };
+  let soilCat = 'basalt_tephra';
+  let soilComp = { ru: 'Силикатно-глинистый реголит с примесью оксидов Fe', en: 'Silicate-clay regolith with Fe oxide fraction' };
+  let processCat = 'fluvial_brine';
+  let processDesc = { ru: 'Флювиальная эрозия и химическое выветривание', en: 'Fluvial erosion & chemical weathering' };
+  let veg = { ru: 'NDVI 0.34 (Умеренный растительный покров)', en: 'NDVI 0.34 (Moderate vegetation cover)' };
+  let waterIce = { ru: 'Грунтовые воды и поверхностный сток', en: 'Groundwater & surface runoff' };
+  let world = 'mars';
+
+  if (isPolar) {
+    mineralCat = 'water_ice';
+    minerals = { ru: 'Погребённый водяной лёд, газогидраты, карбонаты', en: 'Buried water ice, gas hydrates, carbonates' };
+    soilCat = 'permafrost';
+    soilComp = { ru: 'Криогенный грунт с ледяным цементом (вечная мерзлота)', en: 'Cryogenic soil with ice cement (permafrost)' };
+    processCat = 'ice_dynamics';
+    processDesc = { ru: 'Криогенное пучение, солифлюкция и сублимация льда', en: 'Cryogenic heave, solifluction & ice sublimation' };
+    veg = { ru: 'NDVI 0.03 (Арктическая тундра / Ледник)', en: 'NDVI 0.03 (Arctic tundra / Glacier)' };
+    waterIce = { ru: 'Многолетняя мерзлота и снежный покров', en: 'Permafrost & snowpack' };
+  } else if (isHigh) {
+    mineralCat = 'titanium_basalt';
+    minerals = { ru: 'Базальты, андезиты, пироксен, оливин, титаномагнетит', en: 'Basalts, andesites, pyroxene, olivine, titanomagnetite' };
+    soilCat = 'basalt_tephra';
+    soilComp = { ru: 'Высокогорный щебнисто-вулканогенный реголит (TiO₂ ~2%)', en: 'High-altitude volcaniclastic regolith (TiO₂ ~2%)' };
+    processCat = 'volcanism';
+    processDesc = { ru: 'Морозное выветривание, осыпи и горное оледенение', en: 'Frost shattering, talus creep & alpine glaciation' };
+    veg = { ru: 'NDVI 0.05 (Высокогорный нивальный пояс)', en: 'NDVI 0.05 (High-altitude nival zone)' };
+    waterIce = { ru: 'Сезонные снежники и ледниковый сток', en: 'Seasonal snowfields & glacial runoff' };
+    world = 'moon';
+  } else if (isSubtropicalArid) {
+    mineralCat = 'salts_lithium';
+    minerals = { ru: 'Сульфаты (гипс), галит, оксиды железа, карбонаты', en: 'Sulfates (gypsum), halite, iron oxides, carbonates' };
+    soilCat = 'evaporite';
+    soilComp = { ru: 'Аридный сульфатно-солончаковый грунт (органика <0.1%)', en: 'Arid sulfate-saline soil (organics <0.1%)' };
+    processCat = 'dust_erosion';
+    processDesc = { ru: 'Эоловая дефляция, перенос пыли и засоление', en: 'Aeolian deflation, dust transport & salinization' };
+    veg = { ru: 'NDVI 0.04 (Аридная пустыня / Полупустыня)', en: 'NDVI 0.04 (Arid desert / Semi-desert)' };
+    waterIce = { ru: 'Эпизодические пересыхающие русла и эвапориты', en: 'Ephemeral dry channels & evaporites' };
+  } else if (isEquatorial) {
+    mineralCat = 'iron_sulfates';
+    minerals = { ru: 'Латеритные бокситы, гематит, гётит, каолинит', en: 'Lateritic bauxites, hematite, goethite, kaolinite' };
+    soilCat = 'perchlorate';
+    soilComp = { ru: 'Ферраллитная кора выветривания, богатая Fe₂O₃ и Al₂O₃', en: 'Ferrallitic weathering crust rich in Fe₂O₃ & Al₂O₃' };
+    processCat = 'fluvial_brine';
+    processDesc = { ru: 'Интенсивный гидролиз силикатов и флювиальный размыв', en: 'Intense silicate hydrolysis & fluvial incision' };
+    veg = { ru: 'NDVI 0.68 (Тропический / Субэкваториальный пояс)', en: 'NDVI 0.68 (Tropical / Subequatorial belt)' };
+    waterIce = { ru: 'Высокая влажность грунта и обильные осадки', en: 'High soil moisture & heavy precipitation' };
+  }
+
+  const customSite = {
+    id: 'custom_point_' + Date.now(),
+    name: {
+      ru: `Точка сканирования (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`,
+      en: `Survey Point (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`
+    },
+    lat, lon, elev: Math.max(0, tel.elev), slope: isHigh ? 14 : 6, world,
+    isNew: true,
+    mineralCat,
+    minerals,
+    soilCat,
+    soilComp,
+    wind: Math.round(tel.windSpd), windDir: WIND_CODES[Math.round((windDeg % 360) / 45) % 8],
+    windDirLabel: { ru: degToCompass(windDeg, 'ru'), en: degToCompass(windDeg, 'en') },
+    processCat,
+    processDesc,
+    veg,
+    waterIce,
+    desc: {
+      ru: `${geo.ru}Координата (${lat.toFixed(2)}°, ${lon.toFixed(2)}°), высота ${tel.elev} м. Данные рельефа, живого ветра и геологии получены по API.`,
+      en: `${geo.en}Coordinate (${lat.toFixed(2)}°, ${lon.toFixed(2)}°), elevation ${tel.elev} m. Elevation, live wind, and geological data retrieved via API.`
+    }
+  };
+  selectSite(customSite, 'earth');
+}
+
+function inspectPlanetaryCoordinates(planet, lat, lon) {
+  const absLat = Math.abs(lat);
+  const isPolar = absLat > 70;
+  const site = {
+    id: `sector_${planet}`,
+    name: {
+      ru: planet === 'mars' ? `Орбитальный сектор Марса (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)` : `Орбитальный сектор Луны (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`,
+      en: planet === 'mars' ? `Mars Orbital Sector (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)` : `Lunar Orbital Sector (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`
+    },
+    lat, lon, elev: planet === 'mars' ? -1400 : -1100, slope: isPolar ? 16 : 7, world: planet,
+    mineralCat: isPolar ? 'water_ice' : planet === 'mars' ? 'iron_sulfates' : 'titanium_basalt',
+    minerals: {
+      ru: isPolar ? 'Водяной лёд (H₂O) в реголите' : planet === 'mars' ? 'Оксиды Fe, сульфаты, смектиты' : 'Базальты / Анортозиты',
+      en: isPolar ? 'Water ice (H₂O) in regolith' : planet === 'mars' ? 'Fe oxides, sulfates, smectites' : 'Basalts / Anorthosites'
+    },
+    soilCat: isPolar ? 'permafrost' : planet === 'mars' ? 'perchlorate' : 'basalt_tephra',
+    soilComp: {
+      ru: planet === 'mars' ? 'Реголит с оксидами железа и перхлоратами' : 'Мелкодисперсный ударный реголит',
+      en: planet === 'mars' ? 'Regolith with iron oxides & perchlorates' : 'Fine-grained impact regolith'
+    },
+    wind: planet === 'mars' ? 22 : 0, windDir: 'NW',
+    windDirLabel: { ru: planet === 'mars' ? 'СЗ (310°)' : 'Вакуум', en: planet === 'mars' ? 'NW (310°)' : 'Vacuum' },
+    processCat: isPolar ? 'ice_dynamics' : planet === 'mars' ? 'dust_erosion' : 'volcanism',
+    processDesc: {
+      ru: isPolar ? 'Криогенные процессы и сублимация' : planet === 'mars' ? 'Пылевой перенос и эоловая абразия' : 'Микрометеоритное перемалывание',
+      en: isPolar ? 'Cryogenic processes & sublimation' : planet === 'mars' ? 'Dust transport & aeolian abrasion' : 'Micrometeorite gardening'
+    },
+    veg: { ru: 'Отсутствует', en: 'Absent' },
+    waterIce: { ru: isPolar ? 'Залежи водяного льда' : 'Связанный гидроксил (OH)', en: isPolar ? 'Water ice deposits' : 'Bound hydroxyl (OH)' },
+    desc: {
+      ru: 'Выбранный сектор. Нажмите кнопку подбора, чтобы найти земные аналоги.',
+      en: 'Selected orbital sector. Click the match button to find terrestrial analogs.'
+    }
+  };
+  selectSite(site, planet);
+}
+
+// ============================================================================
+// 7. MULTI-FACTOR SCORING & NEW DISCOVERY ENGINE
+// ============================================================================
+function calculateMatchScore(site) {
+  const targetWorld = document.getElementById('world').value;
+  const novelty = document.getElementById('noveltyFilter').value;
+  const minF = document.getElementById('mineralFilter').value;
+  const soilF = document.getElementById('soilFilter').value;
+  const procF = document.getElementById('processFilter').value;
+  const wDirF = document.getElementById('windDirFilter').value;
+  const bioF = document.getElementById('bioWaterFilter').value;
+  const targetElev = Number(document.getElementById('elev').value);
+  const targetWind = Number(document.getElementById('wind').value);
+
+  let penalty = 0;
+  penalty += Math.abs(site.elev - targetElev) / 5000 * 16;
+  penalty += Math.abs(site.wind - targetWind) / 60 * 10;
+
+  if (targetWorld !== 'all' && site.world !== targetWorld) penalty += 16;
+  if (novelty === 'new' && !site.isNew) penalty += 28;
+  if (novelty === 'classic' && site.isNew) penalty += 28;
+  if (minF !== 'any' && site.mineralCat !== minF) penalty += 22;
+  if (soilF !== 'any' && site.soilCat !== soilF) penalty += 20;
+  if (procF !== 'any' && site.processCat !== procF) penalty += 20;
+  if (wDirF !== 'any' && !(site.windDir || '').includes(wDirF)) penalty += 14;
+  if (bioF !== 'any' && site.bioWaterCat !== bioF) penalty += 16;
+
+  return Math.max(24, Math.min(99, Math.round(100 - penalty)));
+}
+
+function renderRankedResults() {
+  const unitM = lang === 'ru' ? 'м' : 'm';
+  const unitKmh = lang === 'ru' ? 'км/ч' : 'km/h';
+  const lblRes = lang === 'ru' ? 'Минералы:' : 'Minerals:';
+  const lblSoil = lang === 'ru' ? 'Грунт:' : 'Soil:';
+  const lblProc = lang === 'ru' ? 'Процесс:' : 'Process:';
+  const lblEnv = lang === 'ru' ? 'Среда:' : 'Env:';
+
+  const scored = EARTH_SITES
+    .map(s => ({ ...s, matchScore: calculateMatchScore(s) }))
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 8);
+
+  const container = document.getElementById('rankedResults');
+  container.innerHTML = scored.map((site, idx) => {
+    const badgeColor = site.world === 'mars'
+      ? 'bg-orange-500/15 text-orange-300 border-orange-500/30'
+      : 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+    const scoreColor = site.matchScore >= 80 ? 'text-emerald-400' : site.matchScore >= 60 ? 'text-indigo-300' : 'text-amber-300';
+
+    return `
+      <article class="card-grad rounded-2xl p-4 flex flex-col justify-between hover:border-indigo-500/50 transition">
+        <div>
+          <div class="flex items-start justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold border ${badgeColor}">#${idx + 1} · ${site.world.toUpperCase()}</span>
+              ${site.isNew ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">✦ ${I18N[lang].newBadge}</span>` : ''}
+            </div>
+            <span class="mono text-sm font-bold ${scoreColor}">${site.matchScore}%</span>
+          </div>
+
+          <h4 class="font-bold text-white text-sm sm:text-base mt-2">${site.name[lang]}</h4>
+          <div class="mono text-[11px] text-slate-400 mt-0.5">${site.lat.toFixed(2)}°, ${site.lon.toFixed(2)}° · ${site.elev} ${unitM} · ${site.windDirLabel[lang]} (${site.wind} ${unitKmh})</div>
+
+          <div class="mt-2.5 space-y-1 text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+            <div><strong class="text-amber-300">${lblRes}</strong> ${site.minerals[lang]}</div>
+            <div><strong class="text-sky-300">${lblSoil}</strong> ${site.soilComp[lang]}</div>
+            <div><strong class="text-orange-300">${lblProc}</strong> ${site.processDesc[lang]}</div>
+            <div><strong class="text-emerald-300">${lblEnv}</strong> ${site.veg[lang]} · ${site.waterIce[lang]}</div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
+          <span class="text-[10px] text-indigo-300 truncate max-w-[55%]">${site.missions}</span>
+          <button onclick="focusSiteOnMap('${site.id}')"
+                  class="px-3 py-1.5 rounded-lg bg-indigo-600/25 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-500/40 text-[11px] font-semibold transition cursor-pointer">
+            ${I18N[lang].openOnMapBtn}
+          </button>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+function discoverNewTerritory() {
+  let candidate = DISCOVERY_CANDIDATES_POOL.find(c => !EARTH_SITES.some(s => s.id === c.id));
+
+  if (!candidate) {
+    const world = document.getElementById('world').value === 'moon' ? 'moon' : 'mars';
+    const randLat = parseFloat(((Math.random() * 110) - 55).toFixed(2));
+    const randLon = parseFloat(((Math.random() * 280) - 140).toFixed(2));
+    candidate = {
+      id: 'ai_cand_' + Date.now(),
+      name: {
+        ru: `AI-кандидат #${EARTH_SITES.length + 1} (${randLat}°, ${randLon}°)`,
+        en: `AI Candidate #${EARTH_SITES.length + 1} (${randLat}°, ${randLon}°)`
+      },
+      lat: randLat, lon: randLon, elev: Number(document.getElementById('elev').value), slope: 9, world, isNew: true,
+      mineralCat: 'salts_lithium',
+      minerals: { ru: 'Сульфатные выцветы, оксиды железа, глинистые корки', en: 'Sulfate efflorescence, iron oxides, clay crusts' },
+      soilCat: 'evaporite',
+      soilComp: { ru: 'Аридный бесструктурный реголит с низкой органикой', en: 'Arid structureless regolith with low organics' },
+      wind: Number(document.getElementById('wind').value), windDir: 'NW',
+      windDirLabel: { ru: 'СЗ (315°)', en: 'NW (315°)' },
+      processCat: 'dust_erosion',
+      processDesc: { ru: 'Эоловая переработка поверхности и выветривание', en: 'Aeolian surface reworking & weathering' },
+      bioWaterCat: 'hyperarid_no_veg',
+      veg: { ru: 'NDVI 0.03 (Минимальная биомасса)', en: 'NDVI 0.03 (Minimal biomass)' },
+      waterIce: { ru: 'Связанная вода в сульфатах', en: 'Bound water in sulfates' },
+      missions: 'ORBITA-GIS Autonomous Candidate Discovery',
+      desc: { ru: 'Территория выделена алгоритмом мультиспектрального и морфометрического скрининга.', en: 'Territory identified via multispectral and morphometric screening.' }
+    };
+  }
+
+  EARTH_SITES.unshift(candidate);
+  document.getElementById('noveltyFilter').value = 'new';
+  document.getElementById('matchCounterBadge').textContent = `${EARTH_SITES.length} ${I18N[lang].sitesCountSuffix}`;
+
+  const banner = document.getElementById('discoveryBanner');
+  const body = document.getElementById('discoveryBannerBody');
+  banner.classList.remove('hidden');
+  body.innerHTML = `
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div>
+        <strong class="text-white text-sm">${candidate.name[lang]}</strong> (${candidate.lat}°, ${candidate.lon}°) —
+        <span class="text-emerald-300">${candidate.minerals[lang]}</span>. <em>${candidate.processDesc[lang]}</em>.
+      </div>
+      <button onclick="focusSiteOnMap('${candidate.id}')" class="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer">
+        ${I18N[lang].openOnMapBtn}
+      </button>
+    </div>
+  `;
+
+  renderRankedResults();
+  renderFullCatalog();
+  if (mapInstance && activePlanet === 'earth') buildMarkersAndPresets('earth');
+}
+
+window.focusSiteOnMap = function(siteId) {
+  const site = EARTH_SITES.find(s => s.id === siteId);
+  if (!site) return;
+  showScreen(2);
+  showTab('explorer');
+  ensureMapInit();
+  if (activePlanet !== 'earth') switchPlanet('earth');
+  mapInstance.setView([site.lat, site.lon], 7);
+  selectSite(site, 'earth');
+};
+
+// ============================================================================
+// 8. DYNAMIC PROCESSES, COMPARISON TABLE & CATALOG RENDERERS
+// ============================================================================
+function renderProcessCards() {
+  const cards = [
+    {
+      badge: { ru: 'Эоловая эрозия', en: 'Aeolian Erosion' },
+      worlds: { ru: 'Земля ↔ Марс', en: 'Earth ↔ Mars' },
+      title: { ru: 'Формирование ярдангов, дюнных полей и абразия', en: 'Yardang Formation, Dune Fields & Abrasion' },
+      desc: {
+        ru: 'Постоянные ветры одного направления вытачивают в осадочных породах аэродинамические гребни (ярданги) и перемещают барханы со скоростью до 1–2 м/год на Марсе.',
+        en: 'Persistent unidirectional winds carve streamlined ridges (yardangs) into sedimentary strata and drive dune migration across Mars and hyper-arid Earth deserts.'
+      },
+      marsLine: { ru: 'Марс: Medusae Fossae, кратер Гейл (ветер СЗ→ЮВ)', en: 'Mars: Medusae Fossae, Gale Crater (NW→SE winds)' },
+      earthLine: { ru: 'Аналоги Земли: Дашт-е-Лут (Иран), Цайдам (Китай)', en: 'Earth Analogs: Dasht-e Lut (Iran), Qaidam Basin (China)' },
+      siteId: 'lut',
+      btnText: { ru: 'Открыть ярданги Дашт-е-Лут →', en: 'Inspect Dasht-e Lut Yardangs →' }
+    },
+    {
+      badge: { ru: 'Пылевые бури', en: 'Dust Storms' },
+      worlds: { ru: 'Земля ↔ Марс', en: 'Earth ↔ Mars' },
+      title: { ru: 'Подъём мелкодисперсного реголита и электростатика', en: 'Fine Regolith Lifting & Triboelectric Dust' },
+      desc: {
+        ru: 'На Марсе локальные бури перерастают в планетарные, снижая инсоляцию батарей на 95%. На Земле базальтовые бури Исландии и пыль Атакамы моделируют абразивный износ.',
+        en: 'Regional Martian storms escalate into planet-encircling dust events, cutting solar output by 95%. Basaltic storms in Iceland model abrasive wear on rover optics.'
+      },
+      marsLine: { ru: 'Марс: Равнина Эллада, Долины Маринер (до 110 км/ч)', en: 'Mars: Hellas Planitia, Valles Marineris (up to 110 km/h)' },
+      earthLine: { ru: 'Аналоги Земли: Холухраун (Исландия), Атакама, Аралкум', en: 'Earth Analogs: Holuhraun (Iceland), Atacama, Aralkum' },
+      siteId: 'iceland',
+      btnText: { ru: 'Открыть пылевые поля Исландии →', en: 'Inspect Iceland Dust Fields →' }
+    },
+    {
+      badge: { ru: 'Вулканическая активность', en: 'Volcanic Activity' },
+      worlds: { ru: 'Земля ↔ Марс ↔ Луна', en: 'Earth ↔ Mars ↔ Moon' },
+      title: { ru: 'Щитовые вулканы, лавовые трубки и фумаролы', en: 'Shield Volcanoes, Lava Tubes & Fumaroles' },
+      desc: {
+        ru: 'Базальтовый вулканизм сформировал лунные моря и провинцию Фарсида на Марсе. Подземные лавовые тоннели — ключевые естественные укрытия от радиации.',
+        en: 'Basaltic volcanism shaped lunar maria and Mars Tharsis province. Subsurface lava tubes offer natural shielding against cosmic radiation and micrometeorites.'
+      },
+      marsLine: { ru: 'Луна / Марс: Холмы Мариуса, Гора Олимп', en: 'Moon / Mars: Marius Hills, Olympus Mons' },
+      earthLine: { ru: 'Аналоги Земли: Манджангуль (Корея), Толбачик, Мауна-Кеа', en: 'Earth Analogs: Manjanggul (Korea), Tolbachik, Mauna Kea' },
+      siteId: 'tolbachik',
+      btnText: { ru: 'Открыть шлаковые конусы Толбачика →', en: 'Inspect Tolbachik Cones →' }
+    },
+    {
+      badge: { ru: 'Движение льдов', en: 'Ice Dynamics' },
+      worlds: { ru: 'Земля ↔ Марс ↔ Луна', en: 'Earth ↔ Mars ↔ Moon' },
+      title: { ru: 'Лопастные ледники, сублимация и вечная тень', en: 'Debris-Covered Glaciers, Sublimation & PSRs' },
+      desc: {
+        ru: 'На средних широтах Марса обнаружены погребённые ледники, медленно текущие под моренным чехлом. На полюсах Луны лёд сохраняется в кратерах вечной тени при −233 °C.',
+        en: 'Mid-latitude Mars hosts lobate debris aprons flowing beneath protective rock debris, while lunar polar PSRs trap water ice at −233 °C.'
+      },
+      marsLine: { ru: 'Марс / Луна: Deuteronilus Mensae, Кратер Шеклтон', en: 'Mars / Moon: Deuteronilus Mensae, Shackleton Crater' },
+      earthLine: { ru: 'Аналоги Земли: Мак-Мердо (Антарктида), Ледник Федченко', en: 'Earth Analogs: McMurdo (Antarctica), Fedchenko Glacier' },
+      siteId: 'fedchenko',
+      btnText: { ru: 'Открыть ледник Федченко (Памир) →', en: 'Inspect Fedchenko Glacier (Pamir) →' }
+    },
+    {
+      badge: { ru: 'Водные изменения и рассолы', en: 'Hydrological & Brine Shifts' },
+      worlds: { ru: 'Земля ↔ Марс', en: 'Earth ↔ Mars' },
+      title: { ru: 'Высыхание палеозёр, эвапориты и сезонные рассолы', en: 'Paleolake Desiccation, Evaporites & Cryo-Brines' },
+      desc: {
+        ru: 'Переход Марса к сухому климату оставил сульфатные корки и сезонные тёмные полосы на склонах (RSL), связанные с миграцией переохлаждённых рассолов.',
+        en: 'Mars’s transition to hyper-aridity left sulfate crusts and recurring slope lineae (RSL) linked to supercooled concentrated brines.'
+      },
+      marsLine: { ru: 'Марс: Кратер Езеро, Плато Меридиана', en: 'Mars: Jezero Crater, Meridiani Planum' },
+      earthLine: { ru: 'Аналоги Земли: Пруд Дон Жуан, Солончак Уюни, Аралкум', en: 'Earth Analogs: Don Juan Pond, Salar de Uyuni, Aralkum' },
+      siteId: 'donjuan',
+      btnText: { ru: 'Открыть рассолы пруда Дон Жуан →', en: 'Inspect Don Juan Pond Brines →' }
+    },
+    {
+      badge: { ru: 'Синтез наблюдений 4-в-1', en: '4-in-1 Observation Synthesis' },
+      worlds: { ru: 'Рельеф + Т° + Био + Вода', en: 'Relief + Temp + Bio + Water' },
+      title: { ru: 'Интегрированный орбитальный профиль территории', en: 'Integrated Orbital Environmental Profile' },
+      desc: {
+        ru: 'В каждом объекте объединены 4 контура спутникового мониторинга: рельеф (SRTM/MOLA/LOLA), тепловая инерция (MODIS/THEMIS), растительность (NDVI) и вода/лёд.',
+        en: 'Every site integrates four remote-sensing contours: relief (SRTM/MOLA/LOLA), thermal inertia (MODIS/THEMIS), vegetation/bio (NDVI), and water/ice phase.'
+      },
+      marsLine: { ru: 'Спутниковые архивы: NASA Trek, GIBS, Macrostrat', en: 'Satellite Archives: NASA Trek, GIBS, Macrostrat' },
+      earthLine: { ru: 'Применение: калибровка роверов, буровых и спектрометров', en: 'Application: rover, drill, and spectrometer calibration' },
+      siteId: null,
+      btnText: { ru: 'Перейти к многослойной карте →', en: 'Go to Multi-Layer Map →' }
+    }
+  ];
+
+  document.getElementById('processCardsContainer').innerHTML = cards.map(c => `
+    <div class="card-grad rounded-2xl p-5 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between">
+          <span class="px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[11px] font-semibold">${c.badge[lang]}</span>
+          <span class="mono text-[11px] text-slate-400">${c.worlds[lang]}</span>
+        </div>
+        <h3 class="font-bold text-white text-base mt-3">${c.title[lang]}</h3>
+        <p class="text-xs text-slate-300 leading-relaxed mt-2">${c.desc[lang]}</p>
+        <div class="mt-3 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] space-y-1">
+          <div class="text-orange-300">${c.marsLine[lang]}</div>
+          <div class="text-sky-300">${c.earthLine[lang]}</div>
+        </div>
+      </div>
+      <button onclick="${c.siteId ? `focusSiteOnMap('${c.siteId}')` : `showTab('explorer')`}"
+              class="mt-4 w-full py-2 rounded-xl bg-indigo-600/25 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-500/40 text-xs font-semibold transition cursor-pointer">
+        ${c.btnText[lang]}
+      </button>
+    </div>
+  `).join('');
+}
+
+function renderComparisonTable() {
+  const rows = [
+    {
+      f: { ru: 'Полезные ископаемые (ISRU)', en: 'Minerals & ISRU Resources' },
+      e: { ru: 'Полиметаллы, соли, литий, льды', en: 'Polymetals, salts, lithium, ices' },
+      m: { ru: 'Ильменит (FeTiO₃), Гелий-3, анортозит, полярный лёд', en: 'Ilmenite (FeTiO₃), Helium-3, anorthosite, polar ice' },
+      r: { ru: 'Гидратированные сульфаты, глины, оксиды Fe, водяной лёд', en: 'Hydrated sulfates, clays, Fe oxides, water ice' },
+      eng: { ru: 'Добыча O₂ из ильменита (Гавайи) и воды из гипса (Атакама)', en: 'O₂ extraction from ilmenite (Hawaii) & water from gypsum (Atacama)' }
+    },
+    {
+      f: { ru: 'Состав грунта / реголита', en: 'Soil / Regolith Composition' },
+      e: { ru: 'Силикаты, гумус, глины', en: 'Silicates, humus, clays' },
+      m: { ru: 'Острый стекловидный базальт, агглютинаты, без воды', en: 'Sharp glassy basalt, agglutinates, anhydrous' },
+      r: { ru: 'Базальтовая пыль, Fe₂O₃ (18%), перхлораты ClO₄⁻ (0.5–1%)', en: 'Basaltic dust, Fe₂O₃ (18%), perchlorates ClO₄⁻ (0.5–1%)' },
+      eng: { ru: 'Защита уплотнителей от абразивной пыли и нейтрализация перхлоратов', en: 'Sealing joints against abrasive dust & neutralizing perchlorates' }
+    },
+    {
+      f: { ru: 'Ветры и эрозия', en: 'Winds & Aeolian Erosion' },
+      e: { ru: 'Глобальная циркуляция, пассаты, муссоны', en: 'Global circulation, trade winds, monsoons' },
+      m: { ru: 'Отсутствуют (только микрометеоритная эрозия)', en: 'Absent (micrometeorite gardening only)' },
+      r: { ru: 'Ячейки Хэдли, катабатические ветры, глобальные пылевые бури', en: 'Hadley cells, katabatic winds, global dust storms' },
+      eng: { ru: 'Аэродинамическая очистка панелей и навигация в пылевой взвеси', en: 'Aerodynamic panel cleaning & LiDAR navigation in dust' }
+    },
+    {
+      f: { ru: 'Вулканизм и криосфера', en: 'Volcanism & Cryosphere' },
+      e: { ru: 'Активная тектоника плит, ледники', en: 'Active plate tectonics, glaciers' },
+      m: { ru: 'Древние базальтовые моря, лавовые трубки, лёд в PSR', en: 'Ancient basaltic maria, lava tubes, ice in PSRs' },
+      r: { ru: 'Гигантские щитовые вулканы, ледяные шапки CO₂/H₂O', en: 'Giant shield volcanoes, CO₂/H₂O polar caps' },
+      eng: { ru: 'Лавовые пещеры Исландии, Камчатки и Кореи — модели укрытий', en: 'Lava caves in Iceland, Kamchatka & Korea model radiation shelters' }
+    },
+    {
+      f: { ru: 'Растительность / Био', en: 'Vegetation / Biosignatures' },
+      e: { ru: 'Биосфера (NDVI 0.0–0.9)', en: 'Biosphere (NDVI 0.0–0.9)' },
+      m: { ru: 'Стерильна', en: 'Sterile' },
+      r: { ru: 'Поиск следов хемолитотрофов и древних биосигнатур', en: 'Search for chemolithotrophs & ancient biosignatures' },
+      eng: { ru: 'Лишайники и эндолиты Атакамы/Антарктиды — эталон калибровки', en: 'Lichens & endoliths in Atacama/Antarctica calibrate life detectors' }
+    }
+  ];
+
+  document.getElementById('comparisonTableBody').innerHTML = rows.map(row => `
+    <tr>
+      <td class="py-3 px-3 font-semibold">${row.f[lang]}</td>
+      <td class="py-3 px-3">${row.e[lang]}</td>
+      <td class="py-3 px-3">${row.m[lang]}</td>
+      <td class="py-3 px-3">${row.r[lang]}</td>
+      <td class="py-3 px-3 text-xs text-slate-400">${row.eng[lang]}</td>
+    </tr>
+  `).join('');
+}
+
+function renderFullCatalog(filterQuery = '') {
+  const q = filterQuery.trim().toLowerCase();
+  const unitM = lang === 'ru' ? 'м' : 'm';
+  const unitKmh = lang === 'ru' ? 'км/ч' : 'km/h';
+  const lblRes = lang === 'ru' ? 'Ресурсы:' : 'Resources:';
+  const lblSoil = lang === 'ru' ? 'Грунт:' : 'Soil:';
+  const lblProc = lang === 'ru' ? 'Процесс:' : 'Process:';
+  const lblWind = lang === 'ru' ? 'Ветер:' : 'Wind:';
+
+  const filtered = EARTH_SITES.filter(s =>
+    [s.name.ru, s.name.en, s.minerals.ru, s.minerals.en, s.soilComp.ru, s.soilComp.en, s.processDesc.ru, s.processDesc.en, s.missions, s.desc.ru, s.desc.en]
+      .some(v => (v || '').toLowerCase().includes(q))
+  );
+
+  const grid = document.getElementById('fullCatalogGrid');
+  grid.innerHTML = filtered.map(site => {
+    const tagStyle = site.world === 'mars'
+      ? 'bg-orange-500/15 text-orange-300 border-orange-500/30'
+      : 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+
+    return `
+      <article class="card-grad rounded-2xl p-5 flex flex-col justify-between hover:border-slate-600 transition">
+        <div>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5">
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${tagStyle}">${site.world.toUpperCase()}</span>
+              ${site.isNew ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">✦ ${I18N[lang].newBadge}</span>` : ''}
+            </div>
+            <span class="mono text-[11px] text-slate-400">${site.lat.toFixed(2)}°, ${site.lon.toFixed(2)}°</span>
+          </div>
+          <h3 class="font-bold text-white text-base mt-2.5">${site.name[lang]}</h3>
+          <p class="text-xs text-slate-300 leading-relaxed mt-1.5">${site.desc[lang]}</p>
+          <div class="mt-2.5 text-[11px] text-slate-300 space-y-1">
+            <div><strong class="text-amber-300">${lblRes}</strong> ${site.minerals[lang]}</div>
+            <div><strong class="text-sky-300">${lblSoil}</strong> ${site.soilComp[lang]}</div>
+            <div><strong class="text-orange-300">${lblProc}</strong> ${site.processDesc[lang]}</div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800/80">
+          <div class="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+            <span>DEM: <strong class="text-slate-200 mono">${site.elev} ${unitM}</strong></span>
+            <span>${lblWind} <strong class="text-slate-200 mono">${site.windDirLabel[lang]} · ${site.wind} ${unitKmh}</strong></span>
+          </div>
+          <button onclick="focusSiteOnMap('${site.id}')"
+                  class="w-full py-2 rounded-xl bg-slate-900 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-500/50 text-xs font-semibold text-indigo-200 transition cursor-pointer">
+            ${I18N[lang].openOnMapBtn}
+          </button>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+// ============================================================================
+// 9. INTEGRATED GAMES HUB (BOTH SOLAR FRONTIER 3D-2 & ORBITAL WORKS)
+// ============================================================================
+const GAMES_REGISTRY = {
+  frontier: {
+    key: 'frontier',
+    badge: 'SOLAR FRONTIER 3D',
+    file: 'Solar Frontier 3D Simulator-2.html',
+    url: './Solar%20Frontier%203D%20Simulator-2.html'
+  },
+  orbital: {
+    key: 'orbital',
+    badge: 'ORBITAL WORKS',
+    file: 'Orbital Works (1).html',
+    url: './Orbital%20Works%20(1).html'
+  }
+};
+
+let activeGameKey = 'frontier';
+let gameInitialized = false;
+let isGameFullscreen = false;
+
+function buildGameUrlWithContext(gameCfg) {
+  const url = new URL(gameCfg.url, window.location.href);
+  url.searchParams.set('source', 'orbita-gis');
+  url.searchParams.set('lang', lang);
+  url.searchParams.set('planet', currentTarget?.world || activePlanet || 'moon');
+  if (currentTarget?.id) {
+    url.searchParams.set('site', currentTarget.id);
+  }
+  return url.toString();
+}
+
+function updateGameExternalLinks() {
+  const froLink = document.getElementById('extLinkFrontier');
+  const orbLink = document.getElementById('extLinkOrbital');
+  if (froLink) froLink.href = buildGameUrlWithContext(GAMES_REGISTRY.frontier);
+  if (orbLink) orbLink.href = buildGameUrlWithContext(GAMES_REGISTRY.orbital);
+}
+
+function launchIntegratedGame(key, scrollIntoView = true) {
+  const cfg = GAMES_REGISTRY[key] || GAMES_REGISTRY.frontier;
+  activeGameKey = cfg.key;
+  gameInitialized = true;
+
+  document.getElementById('activeGameBadge').textContent = cfg.badge;
+  document.getElementById('activeGameFileLabel').textContent = cfg.file;
+
+  const isFrontier = cfg.key === 'frontier';
+  const cardFro = document.getElementById('card-frontier');
+  const cardOrb = document.getElementById('card-orbital');
+  if (cardFro) {
+    cardFro.classList.toggle('ring-2', isFrontier);
+    cardFro.classList.toggle('ring-sky-500', isFrontier);
+  }
+  if (cardOrb) {
+    cardOrb.classList.toggle('ring-2', !isFrontier);
+    cardOrb.classList.toggle('ring-indigo-500', !isFrontier);
+  }
+
+  const swFro = document.getElementById('stageSwitchFrontier');
+  const swOrb = document.getElementById('stageSwitchOrbital');
+  if (swFro) {
+    swFro.className = isFrontier
+      ? 'px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-600 text-white cursor-pointer'
+      : 'px-2.5 py-0.5 rounded-md text-[10px] font-semibold text-slate-300 hover:text-white cursor-pointer';
+  }
+  if (swOrb) {
+    swOrb.className = !isFrontier
+      ? 'px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-600 text-white cursor-pointer'
+      : 'px-2.5 py-0.5 rounded-md text-[10px] font-semibold text-slate-300 hover:text-white cursor-pointer';
+  }
+
+  const frame = document.getElementById('gameFrame');
+  frame.src = buildGameUrlWithContext(cfg);
+
+  if (scrollIntoView) {
+    document.getElementById('gameStageCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function reloadGameFrame() {
+  launchIntegratedGame(activeGameKey, false);
+}
+
+function syncContextToGame() {
+  const frame = document.getElementById('gameFrame');
+  const payload = {
+    type: 'ORBITA_GIS_CONTEXT',
+    lang,
+    activePlanet,
+    target: {
+      id: currentTarget?.id || 'atacama',
+      name: currentTarget?.name?.[lang] || '',
+      world: currentTarget?.world || activePlanet,
+      lat: currentTarget?.lat ?? 0,
+      lon: currentTarget?.lon ?? 0,
+      elev: currentTarget?.elev ?? 0,
+      minerals: currentTarget?.minerals?.[lang] || '',
+      soilComp: currentTarget?.soilComp?.[lang] || ''
+    }
+  };
+
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage(payload, '*');
+  }
+
+  const statusEl = document.getElementById('bridgeStatusText');
+  if (statusEl) {
+    statusEl.textContent = lang === 'ru'
+      ? `Передано в игру: ${payload.target.world.toUpperCase()} (${lang.toUpperCase()})`
+      : `Synced to game: ${payload.target.world.toUpperCase()} (${lang.toUpperCase()})`;
+    setTimeout(() => {
+      statusEl.textContent = I18N[lang].bridgeReady;
+    }, 2600);
+  }
+}
+
+function toggleGameFullscreen(forceState) {
+  const stage = document.getElementById('gameStageCard');
+  const btn = document.getElementById('fullscreenGameBtn');
+  isGameFullscreen = typeof forceState === 'boolean' ? forceState : !isGameFullscreen;
+  stage.classList.toggle('game-stage-fullscreen', isGameFullscreen);
+  document.body.style.overflow = isGameFullscreen ? 'hidden' : '';
+  if (btn) {
+    btn.textContent = isGameFullscreen ? I18N[lang].btnExitFullscreen : I18N[lang].btnFullscreen;
+  }
+}
+
+// Listen for postMessage events from both embedded games
+window.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+
+  if (data.type === 'ORBITA_GAME_READY') {
+    syncContextToGame();
+  } else if (data.type === 'ORBITA_GAME_TELEMETRY' && data.summary) {
+    const statusEl = document.getElementById('bridgeStatusText');
+    if (statusEl) statusEl.textContent = String(data.summary);
+  }
+});
+
+document.getElementById('gameFrame').addEventListener('load', () => {
+  syncContextToGame();
+});
+
+// ============================================================================
+// 10. AI SYNTHESIS BRIEFING & BILINGUAL LANGUAGE SWITCHER
+// ============================================================================
+function runAiMissionAnalysis() {
+  const box = document.getElementById('aiBriefBox');
+  const content = document.getElementById('aiBriefContent');
+  box.classList.remove('hidden');
+  const t = currentTarget;
+  const unitKmh = lang === 'ru' ? 'км/ч' : 'km/h';
+
+  content.innerHTML = lang === 'ru' ? `
+    <p><strong class="text-white">1. Минералогия и состав грунта (${t.name.ru}):</strong> Полезные ископаемые — <em>${t.minerals.ru}</em>. Состав реголита/грунта: <em>${t.soilComp.ru}</em>. Данный геохимический профиль позволяет моделировать переработку ресурсов (ISRU) и калибровку орбитальных спектрометров CRISM / Clementine.</p>
+    <p><strong class="text-white">2. Динамические процессы и роза ветров:</strong> Преобладающий перенос — <strong>${t.windDirLabel.ru}</strong> (${t.wind} ${unitKmh}). Ведущий процесс: <em>${t.processDesc.ru}</em>. Интегрированный профиль среды: растительность/био — <em>${t.veg.ru}</em>; вода/лёд — <em>${t.waterIce.ru}</em>.</p>
+    <p><strong class="text-white">3. Инженерное применение:</strong> Участок рекомендован для испытаний буровых систем, автономной навигации в условиях пылевой взвеси и оценки деградации солнечных батарей.</p>
+  ` : `
+    <p><strong class="text-white">1. Mineralogy & Regolith Composition (${t.name.en}):</strong> Key minerals — <em>${t.minerals.en}</em>. Soil/regolith composition: <em>${t.soilComp.en}</em>. This geochemical profile supports ISRU resource extraction modeling and orbital spectrometer calibration (CRISM / Clementine).</p>
+    <p><strong class="text-white">2. Dynamic Processes & Wind Vector:</strong> Dominant transport — <strong>${t.windDirLabel.en}</strong> (${t.wind} ${unitKmh}). Active process: <em>${t.processDesc.en}</em>. Integrated environmental profile: vegetation/bio — <em>${t.veg.en}</em>; water/ice — <em>${t.waterIce.en}</em>.</p>
+    <p><strong class="text-white">3. Engineering Application:</strong> Recommended for subsurface drill validation, autonomous LiDAR navigation in dusty environments, and solar array degradation testing.</p>
+  `;
+}
+
+function toggleLanguage() {
+  lang = lang === 'ru' ? 'en' : 'ru';
+  document.documentElement.lang = lang;
+  document.getElementById('langLabel').textContent = lang.toUpperCase();
+  document.getElementById('langLabel2').textContent = lang.toUpperCase();
+
+  document.querySelectorAll('[data-i]').forEach(el => {
+    const key = el.dataset.i;
+    if (I18N[lang][key]) el.textContent = I18N[lang][key];
+  });
+
+  document.querySelectorAll('[data-i-placeholder]').forEach(el => {
+    const key = el.dataset.iPlaceholder;
+    if (I18N[lang][key]) el.placeholder = I18N[lang][key];
+  });
+
+  document.getElementById('matchCounterBadge').textContent = `${EARTH_SITES.length} ${I18N[lang].sitesCountSuffix}`;
+  ['elev', 'wind'].forEach(id => document.getElementById(id).dispatchEvent(new Event('input')));
+
+  if (mapInstance) {
+    relabelLayerSelect();
+    buildMarkersAndPresets(activePlanet);
+    selectSite(currentTarget, currentTarget.planet);
+    renderWindVectors();
+  }
+  renderRankedResults();
+  renderProcessCards();
+  renderComparisonTable();
+  renderFullCatalog(document.getElementById('dbSearchInput').value);
+  updateGameExternalLinks();
+  if (gameInitialized) syncContextToGame();
+}
+
+// ============================================================================
+// 11. EVENT LISTENERS & INITIALIZATION
+// ============================================================================
+document.getElementById('langBtn').addEventListener('click', toggleLanguage);
+document.getElementById('langBtn2').addEventListener('click', toggleLanguage);
+
+document.querySelectorAll('.planet-tab').forEach(btn => {
+  btn.addEventListener('click', () => switchPlanet(btn.dataset.planet));
+});
+
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeTheme = btn.dataset.theme;
+    populateSpecificLayers();
+  });
+});
+
+document.getElementById('specificLayerSelect').addEventListener('change', (e) => {
+  applySelectedLayer(Number(e.target.value));
+});
+
+document.getElementById('windVectorsToggle').addEventListener('change', renderWindVectors);
+
+['elev', 'wind'].forEach(id => {
+  const inp = document.getElementById(id);
+  const out = document.getElementById(id + 'Out');
+  inp.addEventListener('input', () => {
+    const unit = id === 'elev' ? (lang === 'ru' ? ' м' : ' m') : (lang === 'ru' ? ' км/ч' : ' km/h');
+    out.textContent = inp.value + unit;
+  });
+});
+
+document.getElementById('searchBtn').addEventListener('click', renderRankedResults);
+document.getElementById('discoverNewBtn').addEventListener('click', discoverNewTerritory);
+document.getElementById('aiAnalyzeBtn').addEventListener('click', runAiMissionAnalysis);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  document.getElementById('world').value = 'all';
+  document.getElementById('noveltyFilter').value = 'all';
+  document.getElementById('mineralFilter').value = 'any';
+  document.getElementById('soilFilter').value = 'any';
+  document.getElementById('processFilter').value = 'any';
+  document.getElementById('windDirFilter').value = 'any';
+  document.getElementById('bioWaterFilter').value = 'any';
+  document.getElementById('elev').value = 1500;
+  document.getElementById('wind').value = 20;
+  ['elev', 'wind'].forEach(id => document.getElementById(id).dispatchEvent(new Event('input')));
+  renderRankedResults();
+});
+
+document.getElementById('syncParamsFromTargetBtn').addEventListener('click', () => {
+  const t = currentTarget;
+  document.getElementById('world').value = t.world === 'moon' ? 'moon' : 'mars';
+  document.getElementById('noveltyFilter').value = 'all';
+  if (t.mineralCat) document.getElementById('mineralFilter').value = t.mineralCat;
+  if (t.soilCat) document.getElementById('soilFilter').value = t.soilCat;
+  if (t.processCat) document.getElementById('processFilter').value = t.processCat;
+  document.getElementById('elev').value = Math.max(0, Math.min(5000, Math.round((t.elev || 1000) / 100) * 100));
+  document.getElementById('wind').value = Math.max(0, Math.min(60, Math.round(t.wind || 15)));
+  ['elev', 'wind'].forEach(id => document.getElementById(id).dispatchEvent(new Event('input')));
+  renderRankedResults();
+  showTab('finder');
+});
+
+document.getElementById('randomMissionBtn').addEventListener('click', () => {
+  const rnd = EARTH_SITES[Math.floor(Math.random() * EARTH_SITES.length)];
+  showScreen(2);
+  showTab('explorer');
+  ensureMapInit();
+  if (activePlanet !== 'earth') switchPlanet('earth');
+  mapInstance.setView([rnd.lat, rnd.lon], 7);
+  selectSite(rnd, 'earth');
+});
+
+document.getElementById('dbSearchInput').addEventListener('input', (e) => renderFullCatalog(e.target.value));
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderRankedResults();
+  renderProcessCards();
+  renderComparisonTable();
+  renderFullCatalog();
+  updateGameExternalLinks();
+});
+</script>
+</body>
+</html>
