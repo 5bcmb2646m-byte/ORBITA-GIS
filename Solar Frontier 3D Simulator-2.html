@@ -749,7 +749,7 @@
             <span class="val-warn" id="hud-rad">0.42 мЗв/ч</span>
           </div>
           <div class="telemetry-row">
-            <span data-i18n="hud_speed">СКОРОСТЬ / СВЕТ:</span>
+            <span>СКОРОСТЬ / СВЕТ:</span>
             <span id="hud-status">0.0 м/с | ВЫКЛ</span>
           </div>
         </div>
@@ -806,19 +806,8 @@
     // =========================================================================
     // СЛОВАРЬ ПЕРЕВОДОВ (РУССКИЙ / АНГЛИЙСКИЙ)
     // =========================================================================
-    let LANG = 'ru';
-    const tr = (ru, en) => (LANG === 'en' ? en : ru);
-
     const I18N = {
       ru: {
-        hud_speed: "СКОРОСТЬ / СВЕТ:",
-        close: "ЗАКРЫТЬ",
-        inv_sub: "СНАБЖЕНИЕ И СИНТЕЗ", inv_title: "РЮКЗАК И 3D-ПРИНТЕР", inv_pack: "РЮКЗАК СКАФАНДРА",
-        inv_cargo: "ГРУЗОВОЙ ОТСЕК МОДУЛЯ (Нажмите, чтобы взять)", inv_craft: "3D-ПРИНТЕР (КРАФТ)",
-        build_sub: "ИНЖЕНЕРНЫЙ ТЕРМИНАЛ", build_title: "СТРОИТЕЛЬСТВО БАЗЫ",
-        map_sub: "АСТРОНАВИГАЦИЯ // КЕПЛЕР-3D", map_title: "СОЛНЕЧНАЯ СИСТЕМА",
-        res_sub: "НАУКА И РОБОТОТЕХНИКА", res_title: "ТЕХНОЛОГИИ И ДРОНЫ", res_rovers: "АВТОНОМНЫЕ РОВЕРЫ «ГЕОЛОГ-М1»",
-        death_sub: "КРИТИЧЕСКИЙ ОТКАЗ СЖО", death_title: "АСТРОНАВТ ПОГИБ", respawn: "ЭВАКУАЦИЯ В МОДУЛЬ",
         title: "SOLAR FRONTIER — Space Colonization Simulator (HD & Mobile)",
         mission_badge: "ПРОГРАММА ARTEMIS-FRONTIER // PBR HD & MOBILE EDITION",
         game_title: "SOLAR FRONTIER",
@@ -851,14 +840,6 @@
         m_light: "СВЕТ", m_mod: "МОДУЛЬ", m_rot: "ПОВОР.", m_jump: "ПРЫЖОК", m_canc: "ОТМЕНА", m_act: "ЛАЗЕР /<br>СТРОЙ"
       },
       en: {
-        hud_speed: "SPEED / LIGHT:",
-        close: "CLOSE",
-        inv_sub: "SUPPLY & SYNTHESIS", inv_title: "BACKPACK & 3D PRINTER", inv_pack: "SUIT BACKPACK",
-        inv_cargo: "MODULE CARGO BAY (Click to take)", inv_craft: "3D PRINTER (CRAFTING)",
-        build_sub: "ENGINEERING TERMINAL", build_title: "BASE CONSTRUCTION",
-        map_sub: "ASTRONAVIGATION // KEPLER-3D", map_title: "SOLAR SYSTEM",
-        res_sub: "SCIENCE & ROBOTICS", res_title: "TECHNOLOGIES & DRONES", res_rovers: "AUTONOMOUS ROVERS \"GEOLOG-M1\"",
-        death_sub: "CRITICAL LIFE SUPPORT FAILURE", death_title: "ASTRONAUT DIED", respawn: "EVACUATE TO MODULE",
         title: "SOLAR FRONTIER — Space Colonization Simulator (HD & Mobile)",
         mission_badge: "ARTEMIS-FRONTIER PROGRAM // PBR HD & MOBILE EDITION",
         game_title: "SOLAR FRONTIER",
@@ -1099,59 +1080,6 @@
         researchTimeSec: 15, cost: { TI_FE_INGOT: 4, REGOLITH_BLOCK: 3 }
       }
     };
-
-    // --- Английские версии каталогов (подмена полей через геттеры) ---
-    function localizeCatalog(cat, en) {
-      for (const [key, fields] of Object.entries(en)) {
-        const obj = cat[key];
-        if (!obj) continue;
-        for (const [f, enVal] of Object.entries(fields)) {
-          const ruVal = obj[f];
-          Object.defineProperty(obj, f, { get: () => (LANG === 'en' ? enVal : ruVal), enumerable: true, configurable: true });
-        }
-      }
-    }
-
-    localizeCatalog(CELESTIAL_BODIES, {
-      SUN: { name: 'SUN', type: 'Star (G2V)', description: 'The central star of the Solar System.' },
-      MERCURY: { name: 'MERCURY', type: 'Terrestrial planet', surfaceComposition: 'Silicates, metallic iron-nickel core', description: 'The closest planet to the Sun, with extreme temperature swings.' },
-      VENUS: { name: 'VENUS', type: 'Terrestrial planet', surfaceComposition: 'Basaltic plains, dense CO₂ atmosphere (92 bar)', description: 'A planet with the strongest greenhouse effect.' },
-      EARTH: { name: 'EARTH', type: 'Terrestrial planet', surfaceComposition: 'Silicate crust, hydrosphere (71%), nitrogen-oxygen atmosphere', description: 'The cradle of humanity and the coordination center of the colonization program.' },
-      MOON: { name: 'MOON', region: 'Sea of Tranquility', type: 'Natural satellite of Earth', surfaceComposition: 'Basaltic regolith, ilmenite (FeTiO₃), anorthosite, water ice', description: "Humanity's first outpost in space." },
-      MARS: { name: 'MARS', region: 'Utopia Planitia', type: 'Terrestrial planet', surfaceComposition: 'Iron oxides (Fe₂O₃), hematite, water ice, CO₂ atmosphere (610 Pa)', description: 'The main target of interplanetary colonization. Thin atmosphere and dust storms.' },
-      JUPITER: { name: 'JUPITER', type: 'Gas giant', surfaceComposition: 'Hydrogen (89.8%), helium (10.2%)', description: 'The largest planet in the Solar System.' },
-      SATURN: { name: 'SATURN', type: 'Gas giant', surfaceComposition: 'Hydrogen, helium, system of icy rings', description: 'A planet with rings made of water ice.' },
-      URANUS: { name: 'URANUS', type: 'Ice giant', surfaceComposition: 'Hydrogen, helium, methane, ammonia ices', description: 'An ice giant.' },
-      NEPTUNE: { name: 'NEPTUNE', type: 'Ice giant', surfaceComposition: 'Hydrogen, helium, methane', description: 'The most distant planet of the Solar System.' }
-    });
-
-    localizeCatalog(ITEMS_CATALOG, {
-      REGOLITH: { name: 'Lunar regolith', category: 'Raw material' },
-      ILMENITE_ORE: { name: 'Ilmenite ore (FeTiO₃)', category: 'Mineral' },
-      ANORTHOSITE: { name: 'Anorthosite (CaAl₂Si₂O₈)', category: 'Mineral' },
-      MARTIAN_REGOLITH: { name: 'Martian regolith (Fe₂O₃)', category: 'Raw material (Mars)' },
-      HEMATITE_ORE: { name: 'Hematite concretion', category: 'Mineral (Mars)' },
-      SUBSURFACE_ICE: { name: 'Water ice (H₂O)', category: 'Volatiles' },
-      REGOLITH_BLOCK: { name: 'Sintered regolith block', category: 'Building material' },
-      TI_FE_INGOT: { name: 'Titanium-iron alloy', category: 'Metal' },
-      SILICON_WAFER: { name: 'Silicon wafer', category: 'Electronics' },
-      RATION_PACK: { name: 'Repair kit / Solder', category: 'Equipment' }
-    });
-
-    localizeCatalog(BUILDINGS_CATALOG, {
-      SOLAR_PANEL: { name: 'Solar panel (SP-4)', category: 'Power', description: 'Photovoltaic array with a dual-axis sun tracker. Generates up to 4.5 kW.' },
-      BATTERY_BANK: { name: 'Battery bank (BB-20)', category: 'Power', description: '20 kWh energy storage with active thermal control.' },
-      RTG_GENERATOR: { name: 'Nuclear RTG-3', category: 'Power', description: 'Radioisotope generator. Steady 3.2 kW by day, at night and during dust storms.' },
-      STORAGE_CRATE: { name: 'Cargo container (SC-500)', category: 'Infrastructure', description: 'Sealed external storage module for resources.' },
-      HAB_MODULE: { name: 'Habitat module "Selena-1"', category: 'Life support', description: 'Pressurized compartment with an airlock and radiation shielding. Restores O₂, charge and heat.' }
-    });
-
-    localizeCatalog(TECHNOLOGIES_CATALOG, {
-      IMPROVED_SUIT_INSULATION: { name: 'Aerogel EMU thermal insulation', branch: 'Materials science', description: 'Reduces heat loss in deep shadow by 50%, saving suit battery.' },
-      AUTONOMOUS_MINING_DRONE: { name: 'Autonomous mining rover "Geolog-M1"', branch: 'Robotics', description: 'Unlocks assembly of AI robots for automatic rock mining.' },
-      RTG_NUCLEAR_POWER: { name: 'Radioisotope generator (RTG-3)', branch: 'Power', description: 'Unlocks construction of an autonomous nuclear power source (3.2 kW).' },
-      METHALOX_PROPULSION: { name: 'Methane-oxygen engine "Ares-RD"', branch: 'Propulsion', description: 'Increases the specific impulse (Isp = 380 s) of the interplanetary ship.' }
-    });
 
     // =========================================================================
     // 3. ПРОЦЕДУРНЫЙ PBR-ГЕНЕРАТОР ТЕКСТУР (DIFFUSE + NORMAL MAP + ROUGHNESS)
@@ -1544,7 +1472,7 @@
         const minutes = Math.floor((totalSec % 3600) / 60);
         const seconds = totalSec % 60;
         const pad = (n) => String(n).padStart(2, '0');
-        return `${pad(days)}${tr('д', 'd')} ${pad(hours)}:${pad(minutes)}:${pad(seconds)} [x${this.timeScale}]`;
+        return `${pad(days)}д ${pad(hours)}:${pad(minutes)}:${pad(seconds)} [x${this.timeScale}]`;
       }
     }
 
@@ -2192,12 +2120,12 @@
 
         if (this.oxygenGrams <= 0) {
           this.health -= 8.0 * dt;
-          if (this.health <= 0) this.triggerDeath(tr('Критическая гипоксия: запас кислорода исчерпан.', 'Critical hypoxia: oxygen supply depleted.'));
+          if (this.health <= 0) this.triggerDeath('Критическая гипоксия: запас кислорода исчерпан.');
         }
         if (this.internalTempC < 5.0 || this.internalTempC > 42.0) {
           this.health -= 5.0 * dt;
           if (this.health <= 0) {
-            this.triggerDeath(this.internalTempC < 5.0 ? tr('Гипотермия в глубокой тени.', 'Hypothermia in deep shadow.') : tr('Тепловой удар: отказ охлаждения.', 'Heat stroke: cooling failure.'));
+            this.triggerDeath(this.internalTempC < 5.0 ? 'Гипотермия в глубокой тени.' : 'Тепловой удар: отказ охлаждения.');
           }
         }
       }
@@ -2500,7 +2428,7 @@
         terminal.position.set(0, 1.6, 2.35);
         terminal.userData.interactable = {
           type: 'LANDER_TERMINAL',
-          get label() { return tr('Терминал посадочного модуля (Груз / Крафт)', 'Lander terminal (Cargo / Crafting)'); }
+          label: 'Терминал посадочного модуля (Груз / Крафт)'
         };
         group.add(terminal);
 
@@ -2935,18 +2863,18 @@
 
         if (!this.hasRequiredResources(cfg.cost)) {
           this.canPlace = false;
-          this.invalidReason = tr('Недостаточно материалов', 'Not enough materials');
+          this.invalidReason = 'Недостаточно материалов';
         } else if (playerPos.distanceTo(this.currentPlacementPos) < cfg.footprintRadius + 1.1) {
           this.canPlace = false;
-          this.invalidReason = tr('Слишком близко к астронавту', 'Too close to the astronaut');
+          this.invalidReason = 'Слишком близко к астронавту';
         } else if (landerPos.distanceTo(this.currentPlacementPos) < cfg.footprintRadius + 4.2) {
           this.canPlace = false;
-          this.invalidReason = tr('Зона посадочного модуля', 'Lander zone');
+          this.invalidReason = 'Зона посадочного модуля';
         } else {
           for (const b of this.buildingManager.buildings) {
             if (b.position.distanceTo(this.currentPlacementPos) < cfg.footprintRadius + b.config.footprintRadius + 0.4) {
               this.canPlace = false;
-              this.invalidReason = tr('Пересечение с другим модулем', 'Overlaps another module');
+              this.invalidReason = 'Пересечение с другим модулем';
               break;
             }
           }
@@ -3141,7 +3069,7 @@
       }
       executeTransferBurn(reqDvKms) {
         const avail = this.getAvailableDeltaVKms();
-        if (avail < reqDvKms) return { success: false, reason: tr(`Мало топлива: нужно Δv ${reqDvKms} км/с, есть ${avail.toFixed(1)} км/с`, `Low fuel: Δv ${reqDvKms} km/s required, ${avail.toFixed(1)} km/s available`) };
+        if (avail < reqDvKms) return { success: false, reason: `Мало топлива: нужно Δv ${reqDvKms} км/с, есть ${avail.toFixed(1)} км/с` };
         const ve = this.ispSeconds * PHYSICS_CONSTANTS.EARTH_GRAVITY;
         const mAfter = (this.dryMassKg + this.fuelKg) / Math.exp((reqDvKms * 1000) / ve);
         this.fuelKg = Math.max(0, mAfter - this.dryMassKg);
@@ -3259,7 +3187,7 @@
         document.getElementById('m-light').addEventListener('touchstart', (e) => {
           e.preventDefault();
           const on = this.game.player.toggleFlashlight();
-          this.game.showToast(`${tr('Налобный фонарь', 'Headlamp')}: ${on ? tr('ВКЛ', 'ON') : tr('ВЫКЛ', 'OFF')}`);
+          this.game.showToast(`Налобный фонарь: ${on ? 'ВКЛ' : 'ВЫКЛ'}`);
         }, { passive: false });
 
         document.getElementById('m-interact').addEventListener('touchstart', (e) => {
@@ -3268,7 +3196,7 @@
           if (hit && hit.object.userData.interactable?.type === 'LANDER_TERMINAL') {
             this.game.inventoryUI.open(true);
           } else {
-            this.game.showToast(tr('Наведите прицел на терминал посадочного модуля', 'Aim at the lander terminal'), true);
+            this.game.showToast('Наведите прицел на терминал посадочного модуля', true);
           }
         }, { passive: false });
 
@@ -3289,7 +3217,7 @@
             Object.entries(b.config.cost).forEach(([id, c]) => this.game.inventory.addItem(id, Math.max(1, Math.floor(c * 0.8))));
             this.game.buildingManager.removeBuilding(b);
             this.game.soundManager.playBuildSuccess();
-            this.game.showToast(tr('Модуль демонтирован', 'Module dismantled'));
+            this.game.showToast('Модуль демонтирован');
           }
         }, { passive: false });
       }
@@ -3380,20 +3308,20 @@
         this.modal.innerHTML = `
           <div class="modal-window">
             <div class="modal-header">
-              <div><div class="panel-title" data-i18n="inv_sub">СНАБЖЕНИЕ И СИНТЕЗ</div><h2 data-i18n="inv_title">РЮКЗАК И 3D-ПРИНТЕР</h2></div>
-              <button id="close-inv-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+              <div><div class="panel-title">СНАБЖЕНИЕ И СИНТЕЗ</div><h2>РЮКЗАК И 3D-ПРИНТЕР</h2></div>
+              <button id="close-inv-btn" class="close-btn">ЗАКРЫТЬ</button>
             </div>
             <div class="inv-layout">
               <div>
-                <div class="col-header"><span data-i18n="inv_pack">РЮКЗАК СКАФАНДРА</span><span id="inv-mass-label" class="val-ok">0 / 120 кг</span></div>
+                <div class="col-header"><span>РЮКЗАК СКАФАНДРА</span><span id="inv-mass-label" class="val-ok">0 / 120 кг</span></div>
                 <div id="player-items-list" class="items-list"></div>
               </div>
               <div>
                 <div id="lander-cargo-sec" class="hidden" style="margin-bottom: 14px;">
-                  <div class="col-header"><span data-i18n="inv_cargo">ГРУЗОВОЙ ОТСЕК МОДУЛЯ (Нажмите, чтобы взять)</span></div>
+                  <div class="col-header"><span>ГРУЗОВОЙ ОТСЕК МОДУЛЯ (Нажмите, чтобы взять)</span></div>
                   <div id="lander-items-list" class="items-list"></div>
                 </div>
-                <div class="col-header"><span data-i18n="inv_craft">3D-ПРИНТЕР (КРАФТ)</span></div>
+                <div class="col-header"><span>3D-ПРИНТЕР (КРАФТ)</span></div>
                 <div id="crafting-recipes-list" class="items-list"></div>
               </div>
             </div>
@@ -3420,20 +3348,20 @@
 
       render() {
         const mass = this.inventory.getTotalMassKg();
-        document.getElementById('inv-mass-label').textContent = `${mass.toFixed(1)} / ${this.inventory.maxMassKg} ${tr('кг', 'kg')}`;
+        document.getElementById('inv-mass-label').textContent = `${mass.toFixed(1)} / ${this.inventory.maxMassKg} кг`;
 
         const pList = document.getElementById('player-items-list');
         pList.innerHTML = '';
         const entries = Object.entries(this.inventory.items);
         if (entries.length === 0) {
-          pList.innerHTML = `<div class="empty-msg">${tr('Рюкзак пуст. Добудьте породу лазером или возьмите материалы из модуля [E].', 'Backpack is empty. Mine rock with the laser or take materials from the module [E].')}</div>`;
+          pList.innerHTML = '<div class="empty-msg">Рюкзак пуст. Добудьте породу лазером или возьмите материалы из модуля [E].</div>';
         } else {
           entries.forEach(([id, cnt]) => {
             const def = ITEMS_CATALOG[id];
             if (!def) return;
             const row = document.createElement('div');
             row.className = 'item-row';
-            row.innerHTML = `<div><strong>${def.name}</strong> <span class="item-cat">[${def.category}]</span><div class="item-sub">${tr('Масса', 'Mass')}: ${(def.massKg * cnt).toFixed(1)} ${tr('кг', 'kg')}</div></div><div class="item-count">x${cnt}</div>`;
+            row.innerHTML = `<div><strong>${def.name}</strong> <span class="item-cat">[${def.category}]</span><div class="item-sub">Масса: ${(def.massKg * cnt).toFixed(1)} кг</div></div><div class="item-count">x${cnt}</div>`;
             pList.appendChild(row);
           });
         }
@@ -3445,13 +3373,13 @@
           cList.innerHTML = '';
           const cEntries = Object.entries(this.lander.cargoStorage).filter(([, c]) => c > 0);
           if (cEntries.length === 0) {
-            cList.innerHTML = `<div class="empty-msg">${tr('Грузовой отсек пуст.', 'Cargo bay is empty.')}</div>`;
+            cList.innerHTML = '<div class="empty-msg">Грузовой отсек пуст.</div>';
           } else {
             cEntries.forEach(([id, cnt]) => {
               const def = ITEMS_CATALOG[id];
               const row = document.createElement('div');
               row.className = 'item-row clickable';
-              row.innerHTML = `<div><strong>${def.name}</strong><div class="item-sub">${tr('Нажмите, чтобы забрать', 'Click to take')}</div></div><div class="item-count">x${cnt}</div>`;
+              row.innerHTML = `<div><strong>${def.name}</strong><div class="item-sub">Нажмите, чтобы забрать</div></div><div class="item-count">x${cnt}</div>`;
               row.addEventListener('click', () => {
                 if (this.inventory.addItem(id, 1)) {
                   this.lander.cargoStorage[id] -= 1;
@@ -3473,7 +3401,7 @@
           const reqStr = Object.entries(rec.inputs).map(([id, c]) => `${ITEMS_CATALOG[id]?.name || id} x${c}`).join(' + ');
           const row = document.createElement('div');
           row.className = 'item-row';
-          row.innerHTML = `<div><strong>${outDef.name} (x${rec.outputCount})</strong><div class="item-sub">${reqStr}</div></div><button class="primary-btn" style="padding: 6px 12px; font-size: 11px;" ${can ? '' : 'disabled'}>${tr('СИНТЕЗ', 'SYNTHESIZE')}</button>`;
+          row.innerHTML = `<div><strong>${outDef.name} (x${rec.outputCount})</strong><div class="item-sub">${reqStr}</div></div><button class="primary-btn" style="padding: 6px 12px; font-size: 11px;" ${can ? '' : 'disabled'}>СИНТЕЗ</button>`;
           row.querySelector('button').addEventListener('click', () => {
             if (this.craftingSystem.craft(rec.id)) this.render();
           });
@@ -3495,8 +3423,8 @@
         this.modal.innerHTML = `
           <div class="modal-window">
             <div class="modal-header">
-              <div><div class="panel-title" data-i18n="build_sub">ИНЖЕНЕРНЫЙ ТЕРМИНАЛ</div><h2 data-i18n="build_title">СТРОИТЕЛЬСТВО БАЗЫ</h2></div>
-              <button id="close-build-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+              <div><div class="panel-title">ИНЖЕНЕРНЫЙ ТЕРМИНАЛ</div><h2>СТРОИТЕЛЬСТВО БАЗЫ</h2></div>
+              <button id="close-build-btn" class="close-btn">ЗАКРЫТЬ</button>
             </div>
             <div id="buildings-list" class="buildings-grid"></div>
           </div>
@@ -3543,14 +3471,14 @@
               <div class="b-title">${b.name}</div>
               <div class="b-desc">${b.description}</div>
               <div class="b-specs">
-                ${b.powerGenerationMaxW ? `<span>${tr('Генерация', 'Generation')}: +${(b.powerGenerationMaxW / 1000).toFixed(1)} ${tr('кВт', 'kW')}</span>` : ''}
-                ${b.powerConsumptionW ? `<span>${tr('Нагрузка', 'Load')}: -${b.powerConsumptionW} ${tr('Вт', 'W')}</span>` : ''}
-                ${b.energyCapacityWh ? `<span>${tr('Ёмкость', 'Capacity')}: ${(b.energyCapacityWh / 1000).toFixed(0)} ${tr('кВт·ч', 'kWh')}</span>` : ''}
+                ${b.powerGenerationMaxW ? `<span>Генерация: +${(b.powerGenerationMaxW / 1000).toFixed(1)} кВт</span>` : ''}
+                ${b.powerConsumptionW ? `<span>Нагрузка: -${b.powerConsumptionW} Вт</span>` : ''}
+                ${b.energyCapacityWh ? `<span>Ёмкость: ${(b.energyCapacityWh / 1000).toFixed(0)} кВт·ч</span>` : ''}
               </div>
-              <div class="b-cost"><div class="cost-title">${tr('МАТЕРИАЛЫ:', 'MATERIALS:')}</div>${costHtml}</div>
+              <div class="b-cost"><div class="cost-title">МАТЕРИАЛЫ:</div>${costHtml}</div>
             </div>
             <button class="primary-btn" ${canAfford ? '' : 'disabled'}>
-              ${techLocked ? tr('ТРЕБУЕТСЯ НАУКА', 'RESEARCH REQUIRED') : canAfford ? tr('ВЫБРАТЬ ЧЕРТЁЖ', 'SELECT BLUEPRINT') : tr('МАЛО РЕСУРСОВ', 'NOT ENOUGH RESOURCES')}
+              ${techLocked ? 'ТРЕБУЕТСЯ НАУКА' : canAfford ? 'ВЫБРАТЬ ЧЕРТЁЖ' : 'МАЛО РЕСУРСОВ'}
             </button>
           `;
           card.querySelector('button').addEventListener('click', () => {
@@ -3569,7 +3497,7 @@
         this.banner.classList.remove('hidden');
         const cfg = BUILDINGS_CATALOG[this.placementSystem.selectedBuildingId];
         const status = this.placementSystem.canPlace
-          ? `<span class="val-ok">${tr('Готово к установке (ЛКМ / Кнопка СТРОЙ)', 'Ready to place (LMB / BUILD button)')}</span>`
+          ? `<span class="val-ok">Готово к установке (ЛКМ / Кнопка СТРОЙ)</span>`
           : `<span class="val-err">${this.placementSystem.invalidReason}</span>`;
         this.banner.innerHTML = `<div><strong>${cfg.name}</strong></div><div style="margin-top:3px;">${status}</div>`;
       }
@@ -3596,8 +3524,8 @@
         this.modal.innerHTML = `
           <div class="modal-window" style="max-width: 1100px; height: 84vh; display: flex; flex-direction: column;">
             <div class="modal-header">
-              <div><div class="panel-title" data-i18n="map_sub">АСТРОНАВИГАЦИЯ // КЕПЛЕР-3D</div><h2 data-i18n="map_title">СОЛНЕЧНАЯ СИСТЕМА</h2></div>
-              <button id="close-map-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+              <div><div class="panel-title">АСТРОНАВИГАЦИЯ // КЕПЛЕР-3D</div><h2>СОЛНЕЧНАЯ СИСТЕМА</h2></div>
+              <button id="close-map-btn" class="close-btn">ЗАКРЫТЬ</button>
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; flex: 1; min-height: 0;">
               <div style="position: relative; border: 1px solid rgba(56, 189, 248, 0.3); background: #000; min-height: 220px;">
@@ -3621,7 +3549,6 @@
         Object.keys(CELESTIAL_BODIES).forEach((key) => {
           const btn = document.createElement('button');
           btn.textContent = CELESTIAL_BODIES[key].name;
-          btn.dataset.bodyKey = key;
           btn.style.cssText = 'background: rgba(15,23,42,0.9); border: 1px solid rgba(56,189,248,0.4); color: #e0f2fe; padding: 3px 6px; font-size: 10px; font-family: monospace; cursor: pointer;';
           btn.addEventListener('click', () => { this.selectedBodyKey = key; this.renderInspector(); });
           pills.appendChild(btn);
@@ -3686,11 +3613,6 @@
         });
       }
 
-      refreshLabels() {
-        this.modal.querySelectorAll('[data-body-key]').forEach((b) => { b.textContent = CELESTIAL_BODIES[b.dataset.bodyKey].name; });
-        this.renderInspector();
-      }
-
       open() {
         this.isOpen = true;
         this.modal.classList.remove('hidden');
@@ -3713,27 +3635,27 @@
           <h3 style="font-size: 18px; color: #fff; margin: 4px 0 6px;">${b.name}</h3>
           <p style="font-size: 12px; color: #94a3b8; line-height: 1.35; margin-bottom: 10px;">${b.description}</p>
           <div style="font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
-            <div><span style="color:#64748b;">${tr('Гравитация', 'Gravity')}:</span> ${b.gravity} ${tr('м/с²', 'm/s²')} (${(b.gravity / 9.80665).toFixed(2)} G)</div>
-            <div><span style="color:#64748b;">${tr('Орбита', 'Orbit')}:</span> ${b.semiMajorAxisAU} ${tr('а.е.', 'AU')} (${b.orbitalPeriodDays} ${tr('сут.', 'days')})</div>
-            <div><span style="color:#64748b;">${tr('Дистанция', 'Distance')}:</span> <span class="val-ok">${distAU.toFixed(3)} ${tr('а.е.', 'AU')} (${(distAU * 149.6).toFixed(1)} ${tr('млн км', 'M km')})</span></div>
-            <div><span style="color:#64748b;">${tr('Состав', 'Composition')}:</span> ${b.surfaceComposition || '—'}</div>
+            <div><span style="color:#64748b;">Гравитация:</span> ${b.gravity} м/с² (${(b.gravity / 9.80665).toFixed(2)} G)</div>
+            <div><span style="color:#64748b;">Орбита:</span> ${b.semiMajorAxisAU} а.е. (${b.orbitalPeriodDays} сут.)</div>
+            <div><span style="color:#64748b;">Дистанция:</span> <span class="val-ok">${distAU.toFixed(3)} а.е. (${(distAU * 149.6).toFixed(1)} млн км)</span></div>
+            <div><span style="color:#64748b;">Состав:</span> ${b.surfaceComposition || '—'}</div>
           </div>
         `;
 
         const act = document.getElementById('planet-travel-actions');
         if (this.selectedBodyKey === this.currentLocationKey) {
-          act.innerHTML = `<div class="val-ok" style="font-family: monospace; font-size: 12px;">${tr('ТЕКУЩАЯ ДИСЛОКАЦИЯ ЭКИПАЖА', 'CURRENT CREW LOCATION')}</div>`;
+          act.innerHTML = `<div class="val-ok" style="font-family: monospace; font-size: 12px;">ТЕКУЩАЯ ДИСЛОКАЦИЯ ЭКИПАЖА</div>`;
         } else if (this.selectedBodyKey === 'MOON' || this.selectedBodyKey === 'MARS') {
           act.innerHTML = `
-            <div style="font-family: monospace; font-size: 11px; color: #7dd3fc; margin-bottom: 6px;">${tr('Импульс перелёта Δv', 'Transfer impulse Δv')}: ~${b.deltaVFromMoonKms} ${tr('км/с', 'km/s')}</div>
-            <button id="launch-exp-btn" class="primary-btn" style="width: 100%; padding: 9px;">${tr('ПЕРЕДИСЛОКАЦИЯ НА', 'RELOCATE TO')} ${b.name}</button>
+            <div style="font-family: monospace; font-size: 11px; color: #7dd3fc; margin-bottom: 6px;">Импульс перелёта Δv: ~${b.deltaVFromMoonKms} км/с</div>
+            <button id="launch-exp-btn" class="primary-btn" style="width: 100%; padding: 9px;">ПЕРЕДИСЛОКАЦИЯ НА ${b.name}</button>
           `;
           document.getElementById('launch-exp-btn').addEventListener('click', () => {
             this.onTravel(this.selectedBodyKey);
             this.close();
           });
         } else {
-          act.innerHTML = `<div style="font-family: monospace; font-size: 11px; color: #64748b;">${tr('Посадка доступна только на Луну и Марс.', 'Landing is only available on the Moon and Mars.')}</div>`;
+          act.innerHTML = `<div style="font-family: monospace; font-size: 11px; color: #64748b;">Посадка доступна только на Луну и Марс.</div>`;
         }
       }
 
@@ -3776,13 +3698,13 @@
         this.modal.innerHTML = `
           <div class="modal-window">
             <div class="modal-header">
-              <div><div class="panel-title" data-i18n="res_sub">НАУКА И РОБОТОТЕХНИКА</div><h2 data-i18n="res_title">ТЕХНОЛОГИИ И ДРОНЫ</h2></div>
-              <button id="close-res-btn" class="close-btn" data-i18n="close">ЗАКРЫТЬ</button>
+              <div><div class="panel-title">НАУКА И РОБОТОТЕХНИКА</div><h2>ТЕХНОЛОГИИ И ДРОНЫ</h2></div>
+              <button id="close-res-btn" class="close-btn">ЗАКРЫТЬ</button>
             </div>
             <div id="active-res-banner" style="background: rgba(56,189,248,0.12); border: 1px solid #38bdf8; padding: 9px; margin-bottom: 12px; font-family: monospace; font-size: 12px;"></div>
             <div id="tech-list-grid" class="buildings-grid" style="margin-bottom: 14px;"></div>
             <div style="border-top: 1px solid rgba(56,189,248,0.3); padding-top: 12px;">
-              <div class="col-header"><span data-i18n="res_rovers">АВТОНОМНЫЕ РОВЕРЫ «ГЕОЛОГ-М1»</span><span id="drone-cnt-lbl">Активно: 0</span></div>
+              <div class="col-header"><span>АВТОНОМНЫЕ РОВЕРЫ «ГЕОЛОГ-М1»</span><span id="drone-cnt-lbl">Активно: 0</span></div>
               <div id="drone-ctrl-box" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
             </div>
           </div>
@@ -3808,9 +3730,9 @@
         const banner = document.getElementById('active-res-banner');
         if (this.researchManager.activeResearchId) {
           const t = TECHNOLOGIES_CATALOG[this.researchManager.activeResearchId];
-          banner.innerHTML = `${tr('ИССЛЕДОВАНИЕ', 'RESEARCH')}: <strong>${t.name}</strong> — <span class="val-ok">${this.researchManager.getProgressPercent().toFixed(0)}%</span>`;
+          banner.innerHTML = `ИССЛЕДОВАНИЕ: <strong>${t.name}</strong> — <span class="val-ok">${this.researchManager.getProgressPercent().toFixed(0)}%</span>`;
         } else {
-          banner.textContent = tr('Активное исследование: Ожидание выбора темы', 'Active research: Waiting for topic selection');
+          banner.textContent = 'Активное исследование: Ожидание выбора темы';
         }
 
         const grid = document.getElementById('tech-list-grid');
@@ -3831,10 +3753,10 @@
               <div class="b-cat">${tech.branch}</div>
               <div class="b-title">${tech.name}</div>
               <div class="b-desc">${tech.description}</div>
-              <div class="b-cost"><div class="cost-title">${tr('ОБРАЗЦЫ', 'SAMPLES')} (${tech.researchTimeSec} ${tr('сек', 'sec')}):</div>${costStr}</div>
+              <div class="b-cost"><div class="cost-title">ОБРАЗЦЫ (${tech.researchTimeSec} сек):</div>${costStr}</div>
             </div>
             <button class="primary-btn" ${unlocked || inProg || !can ? 'disabled' : ''}>
-              ${unlocked ? tr('ИЗУЧЕНО', 'RESEARCHED') : inProg ? tr('ИДЁТ АНАЛИЗ...', 'ANALYZING...') : can ? tr('ИЗУЧИТЬ', 'RESEARCH') : tr('МАЛО ОБРАЗЦОВ', 'NOT ENOUGH SAMPLES')}
+              ${unlocked ? 'ИЗУЧЕНО' : inProg ? 'ИДЁТ АНАЛИЗ...' : can ? 'ИЗУЧИТЬ' : 'МАЛО ОБРАЗЦОВ'}
             </button>
           `;
           card.querySelector('button').addEventListener('click', () => {
@@ -3844,11 +3766,11 @@
         });
 
         const box = document.getElementById('drone-ctrl-box');
-        document.getElementById('drone-cnt-lbl').textContent = `${tr('Активно дронов', 'Active drones')}: ${this.robotAI.robots.length}`;
+        document.getElementById('drone-cnt-lbl').textContent = `Активно дронов: ${this.robotAI.robots.length}`;
         box.innerHTML = '';
 
         if (!this.researchManager.isUnlocked('AUTONOMOUS_MINING_DRONE')) {
-          box.innerHTML = `<div class="empty-msg">${tr('Изучите технологию «Автономный ровер-шахтёр „Геолог-М1“» выше.', 'Research the "Autonomous mining rover Geolog-M1" technology above.')}</div>`;
+          box.innerHTML = '<div class="empty-msg">Изучите технологию «Автономный ровер-шахтёр „Геолог-М1“» выше.</div>';
           return;
         }
 
@@ -3856,7 +3778,7 @@
         const btn = document.createElement('button');
         btn.className = 'primary-btn';
         btn.disabled = !canBuild;
-        btn.textContent = canBuild ? tr('Собрать дрона (2 Сплава + 2 Кремния)', 'Build drone (2 Alloy + 2 Silicon)') : tr('Нужно: 2 Сплава + 2 Кремния', 'Required: 2 Alloy + 2 Silicon');
+        btn.textContent = canBuild ? 'Собрать дрона (2 Сплава + 2 Кремния)' : 'Нужно: 2 Сплава + 2 Кремния';
         btn.addEventListener('click', () => {
           if (this.inventory.removeItem('TI_FE_INGOT', 2) && this.inventory.removeItem('SILICON_WAFER', 2)) {
             this.robotAI.spawnRobot(this.player.position.x + 2.5, this.player.position.z + 2.5);
@@ -3866,12 +3788,12 @@
         box.appendChild(btn);
 
         ['ALL', 'REGOLITH', 'ORES'].forEach((pId) => {
-          const labels = { ALL: tr('Все породы', 'All rocks'), REGOLITH: tr('Реголит', 'Regolith'), ORES: tr('Руды', 'Ores') };
+          const labels = { ALL: 'Все породы', REGOLITH: 'Реголит', ORES: 'Руды' };
           const pBtn = document.createElement('button');
           pBtn.className = 'close-btn';
           pBtn.style.borderColor = this.robotAI.priorityFilter === pId ? '#22c55e' : '#38bdf8';
           pBtn.style.color = this.robotAI.priorityFilter === pId ? '#4ade80' : '#7dd3fc';
-          pBtn.textContent = `${tr('Цель', 'Target')}: ${labels[pId]}`;
+          pBtn.textContent = `Цель: ${labels[pId]}`;
           pBtn.addEventListener('click', () => { this.robotAI.priorityFilter = pId; this.render(); });
           box.appendChild(pBtn);
         });
@@ -3947,31 +3869,11 @@
 
       setLanguage(lang) {
         this.currentLang = lang;
-        LANG = lang;
-        document.documentElement.lang = lang;
-
-        // Статичные подписи (HTML и окна)
         document.querySelectorAll('[data-i18n]').forEach((el) => {
           const key = el.getAttribute('data-i18n');
           if (I18N[lang][key]) el.innerHTML = I18N[lang][key];
         });
-
-        // Динамические подписи HUD
-        const body = this.currentBody;
-        document.getElementById('hud-body').textContent = body.region ? `${body.name} (${body.region})` : body.name;
-        document.getElementById('hud-gravity').textContent = `g = ${body.gravity.toFixed(2)} ${tr('м/с²', 'm/s²')}`;
-        document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${this.timeManager.timeScale}`;
-        this.updateHUD(0);
-        document.getElementById('hud-time').textContent = this.timeManager.getFormattedMET();
-
-        // Окна и обучение
         this.tutorialUI.setLanguage(lang);
-        if (this.inventoryUI.isOpen) this.inventoryUI.render();
-        if (this.buildingUI.isOpen) this.buildingUI.renderList();
-        if (this.researchUI.isOpen) this.researchUI.render();
-        this.mapUI.refreshLabels();
-        this.buildingUI.updateBanner();
-        if (this.suitSystem.isDead) document.getElementById('death-reason-txt').textContent = this.suitSystem.deathReason;
       }
 
       createOverlays() {
@@ -3988,10 +3890,10 @@
         this.deathModal.style.zIndex = '150';
         this.deathModal.innerHTML = `
           <div class="modal-window" style="max-width:460px;text-align:center;border-color:#ef4444;">
-            <div class="panel-title" style="color:#ef4444;" data-i18n="death_sub">КРИТИЧЕСКИЙ ОТКАЗ СЖО</div>
-            <h2 style="margin:10px 0;color:#fca5a5;" data-i18n="death_title">АСТРОНАВТ ПОГИБ</h2>
+            <div class="panel-title" style="color:#ef4444;">КРИТИЧЕСКИЙ ОТКАЗ СЖО</div>
+            <h2 style="margin:10px 0;color:#fca5a5;">АСТРОНАВТ ПОГИБ</h2>
             <p id="death-reason-txt" style="color:#cbd5e1;margin-bottom:20px;font-size:13px;"></p>
-            <button id="respawn-btn" class="primary-btn" style="background:#b91c1c;border-color:#ef4444;" data-i18n="respawn">ЭВАКУАЦИЯ В МОДУЛЬ</button>
+            <button id="respawn-btn" class="primary-btn" style="background:#b91c1c;border-color:#ef4444;">ЭВАКУАЦИЯ В МОДУЛЬ</button>
           </div>
         `;
         document.body.appendChild(this.deathModal);
@@ -4051,7 +3953,7 @@
         document.getElementById('qb-tut').addEventListener('click', () => { this.closeAllModals(); this.mobileControls.setVisible(false); this.tutorialUI.open(this.currentLang); });
         document.getElementById('qb-time').addEventListener('click', () => {
           const s = this.timeManager.cycleTimeScale();
-          document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${s}`;
+          document.getElementById('qb-time').textContent = `${this.currentLang === 'ru' ? 'Время' : 'Time'} x${s}`;
         });
         document.getElementById('qb-save').addEventListener('click', async () => {
           await this.saveManager.saveGame('slot_1', this);
@@ -4092,7 +3994,7 @@
 
           if (e.code === 'F5') { e.preventDefault(); await this.saveManager.saveGame('slot_1', this); this.showToast(this.currentLang === 'ru' ? 'МИР СОХРАНЁН' : 'WORLD SAVED'); return; }
           if (e.code === 'F9') { e.preventDefault(); await this.restoreFromSave('slot_1'); return; }
-          if (e.code === 'KeyV') { const on = this.soundManager.toggleMute(); this.showToast(`${tr('Звук', 'Sound')}: ${on ? tr('ВКЛ', 'ON') : tr('ВЫКЛ', 'OFF')}`); }
+          if (e.code === 'KeyV') { const on = this.soundManager.toggleMute(); this.showToast(`Звук: ${on ? 'ВКЛ' : 'ВЫКЛ'}`); }
           if (e.code === 'Tab') { e.preventDefault(); const was = this.inventoryUI.isOpen; this.closeAllModals(); if (!was) this.inventoryUI.open(false); }
           if (e.code === 'KeyB') { const was = this.buildingUI.isOpen; this.closeAllModals(); if (!was) this.buildingUI.open(); }
           if (e.code === 'KeyM') { const was = this.mapUI.isOpen; this.closeAllModals(); if (!was) this.mapUI.open(); }
@@ -4111,9 +4013,9 @@
               this.soundManager.playBuildSuccess();
             }
           }
-          if (e.code === 'KeyP' && this.isRunning && this.dustStormSystem.toggleStormManual()) this.showToast(tr('Переключение пылевой бури', 'Dust storm toggled'));
-          if (e.code === 'KeyY') { this.timeManager.increaseTimeScale(); document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${this.timeManager.timeScale}`; }
-          if (e.code === 'KeyT') { this.timeManager.decreaseTimeScale(); document.getElementById('qb-time').textContent = `${tr('Время', 'Time')} x${this.timeManager.timeScale}`; }
+          if (e.code === 'KeyP' && this.isRunning && this.dustStormSystem.toggleStormManual()) this.showToast('Переключение пылевой бури');
+          if (e.code === 'KeyY') { this.timeManager.increaseTimeScale(); document.getElementById('qb-time').textContent = `${this.currentLang === 'ru' ? 'Время' : 'Time'} x${this.timeManager.timeScale}`; }
+          if (e.code === 'KeyT') { this.timeManager.decreaseTimeScale(); document.getElementById('qb-time').textContent = `${this.currentLang === 'ru' ? 'Время' : 'Time'} x${this.timeManager.timeScale}`; }
         });
 
         document.addEventListener('mousedown', (e) => {
@@ -4180,13 +4082,13 @@
         this.player.velocity.set(0, 0, 0);
 
         document.getElementById('hud-body').textContent = `${this.currentBody.name} (${this.currentBody.region})`;
-        document.getElementById('hud-gravity').textContent = `g = ${this.currentBody.gravity.toFixed(2)} ${tr('м/с²', 'm/s²')}`;
-        this.showToast(`${tr('ПОСАДКА ЗАВЕРШЕНА', 'LANDING COMPLETE')}: ${this.currentBody.name}`);
+        document.getElementById('hud-gravity').textContent = `g = ${this.currentBody.gravity.toFixed(2)} м/с²`;
+        this.showToast(`ПОСАДКА ЗАВЕРШЕНА: ${this.currentBody.name}`);
       }
 
       async restoreFromSave(slotId) {
         const data = await this.saveManager.loadGame(slotId);
-        if (!data) { this.showToast(tr('Сохранение не найдено', 'Save not found'), true); return; }
+        if (!data) { this.showToast('Сохранение не найдено', true); return; }
 
         if (data.bodyKey !== this.currentBody.id.toUpperCase()) this.travelToPlanet(data.bodyKey, true);
         this.timeManager.elapsedMissionSeconds = data.missionSeconds || 0;
@@ -4209,7 +4111,7 @@
         for (let i = 0; i < (data.robotCount || 0); i++) {
           this.robotAI.spawnRobot(this.player.position.x + 2 + i * 1.5, this.player.position.z + 2);
         }
-        this.showToast(`${tr('ЗАГРУЖЕНО', 'LOADED')}: ${new Date(data.timestamp).toLocaleTimeString()}`);
+        this.showToast(`ЗАГРУЖЕНО: ${new Date(data.timestamp).toLocaleTimeString()}`);
       }
 
       respawnPlayer() {
@@ -4252,7 +4154,7 @@
             if (doneTech === 'IMPROVED_SUIT_INSULATION') this.suitSystem.thermalLossMultiplier = 0.5;
             if (doneTech === 'METHALOX_PROPULSION') this.spaceship.ispSeconds = 380;
             this.soundManager.playBuildSuccess();
-            this.showToast(`${tr('ИЗУЧЕНО', 'RESEARCHED')}: ${TECHNOLOGIES_CATALOG[doneTech]?.name}`);
+            this.showToast(`ИЗУЧЕНО: ${TECHNOLOGIES_CATALOG[doneTech]?.name}`);
           }
 
           this.robotAI.update(scaledDt);
@@ -4311,13 +4213,13 @@
         if (hit.object.userData.resourceNode) {
           const n = hit.object.userData.resourceNode;
           const pct = Math.round(this.miningSystem.miningProgress * 100);
-          this.promptEl.textContent = `${tr('Добыча', 'Mining')}: ${ITEMS_CATALOG[n.itemId]?.name} (${n.remainingYield}) ${pct > 0 ? `[${pct}%]` : ''}`;
+          this.promptEl.textContent = `Добыча: ${ITEMS_CATALOG[n.itemId]?.name} (${n.remainingYield}) ${pct > 0 ? `[${pct}%]` : ''}`;
           this.promptEl.style.display = 'block';
         } else if (hit.object.userData.interactable) {
           this.promptEl.textContent = `[E] ${hit.object.userData.interactable.label}`;
           this.promptEl.style.display = 'block';
         } else if (hit.object.userData.building) {
-          this.promptEl.textContent = `${hit.object.userData.building.config.name} | [X] ${tr('Снос', 'Demolish')}`;
+          this.promptEl.textContent = `${hit.object.userData.building.config.name} | [X] Снос`;
           this.promptEl.style.display = 'block';
         } else {
           this.promptEl.style.display = 'none';
@@ -4333,41 +4235,41 @@
           this.fpsTimer = 0;
         }
 
-        document.getElementById('hud-coords').textContent = `X: ${this.player.position.x.toFixed(1)} ${tr('м', 'm')} | Z: ${this.player.position.z.toFixed(1)} ${tr('м', 'm')}`;
+        document.getElementById('hud-coords').textContent = `X: ${this.player.position.x.toFixed(1)} м | Z: ${this.player.position.z.toFixed(1)} м`;
         document.getElementById('hud-time').textContent = this.timeManager.getFormattedMET();
-        document.getElementById('hud-sun-angle').textContent = `${tr('Солнце', 'Sun')}: ${this.timeManager.getSunElevationDegrees().toFixed(1)}°`;
+        document.getElementById('hud-sun-angle').textContent = `Солнце: ${this.timeManager.getSunElevationDegrees().toFixed(1)}°`;
 
         const atm = this.suitSystem.isPressurizedSafeZone
-          ? tr('Гермозона (70 кПа)', 'Pressurized zone (70 kPa)')
-          : this.currentBody.id === 'mars' ? tr('610 Па (CO₂)', '610 Pa (CO₂)') : tr('Вакуум (0 Па)', 'Vacuum (0 Pa)');
+          ? 'Гермозона (70 кПа)'
+          : this.currentBody.id === 'mars' ? '610 Па (CO₂)' : 'Вакуум (0 Па)';
         document.getElementById('hud-atmosphere').textContent = atm;
 
         const o2Pct = this.suitSystem.getOxygenPercent();
         const o2El = document.getElementById('hud-o2');
-        o2El.textContent = `${o2Pct.toFixed(1)}% (${this.suitSystem.oxygenGrams.toFixed(0)} ${tr('г', 'g')})`;
+        o2El.textContent = `${o2Pct.toFixed(1)}% (${this.suitSystem.oxygenGrams.toFixed(0)} г)`;
         o2El.className = o2Pct > 25 ? 'val-ok' : 'val-err';
 
         const ambStr = `${this.suitSystem.ambientTempC >= 0 ? '+' : ''}${this.suitSystem.ambientTempC.toFixed(0)}°C`;
         document.getElementById('hud-temp').textContent = `+${this.suitSystem.internalTempC.toFixed(1)}°C (${ambStr})`;
-        document.getElementById('hud-rad').textContent = `${this.suitSystem.currentDoseRateMsvH.toFixed(2)} ${tr('мЗв/ч', 'mSv/h')}`;
-        document.getElementById('hud-status').textContent = `${this.player.getHorizontalSpeed().toFixed(1)} ${tr('м/с', 'm/s')} | ${this.player.flashlightOn ? tr('ВКЛ', 'ON') : tr('ВЫКЛ', 'OFF')}`;
+        document.getElementById('hud-rad').textContent = `${this.suitSystem.currentDoseRateMsvH.toFixed(2)} мЗв/ч`;
+        document.getElementById('hud-status').textContent = `${this.player.getHorizontalSpeed().toFixed(1)} м/с | ${this.player.flashlightOn ? 'ВКЛ' : 'ВЫКЛ'}`;
 
         const net = this.buildingManager.powerNetwork;
         const pBal = document.getElementById('hud-power-bal');
-        pBal.textContent = `+${(net.totalGenerationW / 1000).toFixed(1)} / -${(net.totalConsumptionW / 1000).toFixed(1)} ${tr('кВт', 'kW')}`;
+        pBal.textContent = `+${(net.totalGenerationW / 1000).toFixed(1)} / -${(net.totalConsumptionW / 1000).toFixed(1)} кВт`;
         pBal.className = net.netPowerW >= 0 ? 'val-ok' : 'val-warn';
 
         document.getElementById('hud-bat-bank').textContent = net.totalCapacityWh > 0
-          ? `${net.getBatteryPercentage().toFixed(0)}% (${(net.storedEnergyWh / 1000).toFixed(1)} ${tr('кВт·ч', 'kWh')})`
-          : tr('Нет АКБ', 'No batteries');
+          ? `${net.getBatteryPercentage().toFixed(0)}% (${(net.storedEnergyWh / 1000).toFixed(1)} кВт·ч)`
+          : 'Нет АКБ';
 
         const sbPct = this.suitSystem.getBatteryPercent();
         const sbEl = document.getElementById('hud-suit-bat');
         sbEl.textContent = `${sbPct.toFixed(1)}%`;
         sbEl.className = sbPct > 20 ? 'val-ok' : 'val-err';
 
-        document.getElementById('hud-zone-hp').textContent = `${this.suitSystem.health.toFixed(0)}% | ${tr('Дронов', 'Drones')}: ${this.robotAI.robots.length}`;
-        document.getElementById('hud-fuel').textContent = `${tr('Корабль Δv', 'Ship Δv')}: ${this.spaceship.getAvailableDeltaVKms().toFixed(2)} ${tr('км/с', 'km/s')}`;
+        document.getElementById('hud-zone-hp').textContent = `${this.suitSystem.health.toFixed(0)}% | Дронов: ${this.robotAI.robots.length}`;
+        document.getElementById('hud-fuel').textContent = `Корабль Δv: ${this.spaceship.getAvailableDeltaVKms().toFixed(2)} км/с`;
 
         if (this.suitSystem.isDead) {
           document.getElementById('death-reason-txt').textContent = this.suitSystem.deathReason;
@@ -4390,6 +4292,180 @@
       const game = new Game(document.getElementById('game-canvas'));
       game.start();
     });
+  </script>
+
+  <!-- Дополнительный слой перевода: переводит интерфейс на английский, не затрагивая код игры -->
+  <script>
+(function () {
+  // ---- Словарь: русский -> английский (подстановка по целым словам/фразам) ----
+  var PHRASES = {
+    // Окна
+    'СНАБЖЕНИЕ И СИНТЕЗ':'SUPPLY & SYNTHESIS','РЮКЗАК И 3D-ПРИНТЕР':'BACKPACK & 3D PRINTER','ЗАКРЫТЬ':'CLOSE',
+    'РЮКЗАК СКАФАНДРА':'SUIT BACKPACK','ГРУЗОВОЙ ОТСЕК МОДУЛЯ (Нажмите, чтобы взять)':'MODULE CARGO BAY (Click to take)',
+    '3D-ПРИНТЕР (КРАФТ)':'3D PRINTER (CRAFTING)','ИНЖЕНЕРНЫЙ ТЕРМИНАЛ':'ENGINEERING TERMINAL','СТРОИТЕЛЬСТВО БАЗЫ':'BASE CONSTRUCTION',
+    'АСТРОНАВИГАЦИЯ // КЕПЛЕР-3D':'ASTRONAVIGATION // KEPLER-3D','СОЛНЕЧНАЯ СИСТЕМА':'SOLAR SYSTEM',
+    'НАУКА И РОБОТОТЕХНИКА':'SCIENCE & ROBOTICS','ТЕХНОЛОГИИ И ДРОНЫ':'TECHNOLOGIES & DRONES',
+    'АВТОНОМНЫЕ РОВЕРЫ «ГЕОЛОГ-М1»':'AUTONOMOUS ROVERS "GEOLOG-M1"',
+    'КРИТИЧЕСКИЙ ОТКАЗ СЖО':'CRITICAL LIFE SUPPORT FAILURE','АСТРОНАВТ ПОГИБ':'ASTRONAUT DIED','ЭВАКУАЦИЯ В МОДУЛЬ':'EVACUATE TO MODULE',
+    'СКОРОСТЬ / СВЕТ:':'SPEED / LIGHT:',
+    // Рюкзак
+    'Рюкзак пуст. Добудьте породу лазером или возьмите материалы из модуля [E].':'Backpack is empty. Mine rock with the laser or take materials from the module [E].',
+    'Грузовой отсек пуст.':'Cargo bay is empty.','Нажмите, чтобы забрать':'Click to take','Масса':'Mass','СИНТЕЗ':'SYNTHESIZE',
+    // Стройка
+    'Генерация':'Generation','Нагрузка':'Load','Ёмкость':'Capacity','МАТЕРИАЛЫ:':'MATERIALS:',
+    'ТРЕБУЕТСЯ НАУКА':'RESEARCH REQUIRED','ВЫБРАТЬ ЧЕРТЁЖ':'SELECT BLUEPRINT','МАЛО РЕСУРСОВ':'NOT ENOUGH RESOURCES',
+    'Готово к установке (ЛКМ / Кнопка СТРОЙ)':'Ready to place (LMB / BUILD button)',
+    'Недостаточно материалов':'Not enough materials','Слишком близко к астронавту':'Too close to the astronaut',
+    'Зона посадочного модуля':'Lander zone','Пересечение с другим модулем':'Overlaps another module',
+    // Карта
+    'Гравитация':'Gravity','Орбита':'Orbit','Дистанция':'Distance','Состав':'Composition',
+    'ТЕКУЩАЯ ДИСЛОКАЦИЯ ЭКИПАЖА':'CURRENT CREW LOCATION','Импульс перелёта':'Transfer impulse','ПЕРЕДИСЛОКАЦИЯ НА':'RELOCATE TO',
+    'Посадка доступна только на Луну и Марс.':'Landing is only available on the Moon and Mars.',
+    // Наука
+    'ИССЛЕДОВАНИЕ':'RESEARCH','Активное исследование: Ожидание выбора темы':'Active research: Waiting for topic selection',
+    'ОБРАЗЦЫ':'SAMPLES','ИЗУЧЕНО':'RESEARCHED','ИДЁТ АНАЛИЗ...':'ANALYZING...','ИЗУЧИТЬ':'RESEARCH','МАЛО ОБРАЗЦОВ':'NOT ENOUGH SAMPLES',
+    'Активно дронов':'Active drones','Активно':'Active',
+    'Изучите технологию «Автономный ровер-шахтёр „Геолог-М1“» выше.':'Research the "Autonomous mining rover Geolog-M1" technology above.',
+    'Собрать дрона (2 Сплава + 2 Кремния)':'Build drone (2 Alloy + 2 Silicon)','Нужно: 2 Сплава + 2 Кремния':'Required: 2 Alloy + 2 Silicon',
+    'Все породы':'All rocks','Реголит':'Regolith','Руды':'Ores','Цель':'Target',
+    // HUD, подсказки, уведомления
+    'Солнце':'Sun','Время':'Time','Вакуум':'Vacuum','Гермозона':'Pressurized zone','Нет АКБ':'No batteries',
+    'Дронов':'Drones','Корабль':'Ship','Снос':'Demolish','Добыча':'Mining','Звук':'Sound','Налобный фонарь':'Headlamp',
+    'Наведите прицел на терминал посадочного модуля':'Aim at the lander terminal','Модуль демонтирован':'Module dismantled',
+    'Переключение пылевой бури':'Dust storm toggled','ПОСАДКА ЗАВЕРШЕНА':'LANDING COMPLETE','Сохранение не найдено':'Save not found',
+    'ЗАГРУЖЕНО':'LOADED','Мало топлива: нужно':'Low fuel: required','есть':'available',
+    'Терминал посадочного модуля (Груз / Крафт)':'Lander terminal (Cargo / Crafting)',
+    'Критическая гипоксия: запас кислорода исчерпан.':'Critical hypoxia: oxygen supply depleted.',
+    'Гипотермия в глубокой тени.':'Hypothermia in deep shadow.','Тепловой удар: отказ охлаждения.':'Heat stroke: cooling failure.',
+    // Планеты
+    'СОЛНЦЕ':'SUN','МЕРКУРИЙ':'MERCURY','ВЕНЕРА':'VENUS','ЗЕМЛЯ':'EARTH','ЛУНА':'MOON','МАРС':'MARS','ЮПИТЕР':'JUPITER','САТУРН':'SATURN','УРАН':'URANUS','НЕПТУН':'NEPTUNE',
+    'Море Спокойствия':'Sea of Tranquility','Равнина Утопия':'Utopia Planitia',
+    'Звезда (G2V)':'Star (G2V)','Планета земной группы':'Terrestrial planet','Естественный спутник Земли':'Natural satellite of Earth','Газовый гигант':'Gas giant','Ледяной гигант':'Ice giant',
+    'Центральная звезда Солнечной системы.':'The central star of the Solar System.',
+    'Силикаты, металлическое железо-никелевое ядро':'Silicates, metallic iron-nickel core',
+    'Ближайшая к Солнцу планета с экстремальными перепадами температур.':'The closest planet to the Sun, with extreme temperature swings.',
+    'Базальтовые равнины, плотная атмосфера CO₂ (92 бар)':'Basaltic plains, dense CO₂ atmosphere (92 bar)',
+    'Планета с сильнейшим парниковым эффектом.':'A planet with the strongest greenhouse effect.',
+    'Силикатная кора, гидросфера (71%), азотно-кислородная атмосфера':'Silicate crust, hydrosphere (71%), nitrogen-oxygen atmosphere',
+    'Колыбель человечества и центр координации программы колонизации.':'The cradle of humanity and the coordination center of the colonization program.',
+    'Базальтовый реголит, ильменит (FeTiO₃), анортозит, водяной лёд':'Basaltic regolith, ilmenite (FeTiO₃), anorthosite, water ice',
+    'Первый форпост человечества в космосе.':"Humanity's first outpost in space.",
+    'Оксиды железа (Fe₂O₃), гематит, водяной лёд, атмосфера CO₂ (610 Па)':'Iron oxides (Fe₂O₃), hematite, water ice, CO₂ atmosphere (610 Pa)',
+    'Главная цель межпланетной колонизации. Разреженная атмосфера и пылевые бури.':'The main target of interplanetary colonization. Thin atmosphere and dust storms.',
+    'Водород (89.8%), гелий (10.2%)':'Hydrogen (89.8%), helium (10.2%)','Крупнейшая планета Солнечной системы.':'The largest planet in the Solar System.',
+    'Водород, гелий, система ледяных колец':'Hydrogen, helium, system of icy rings','Планета с кольцами из водяного льда.':'A planet with rings made of water ice.',
+    'Водород, гелий, метан, аммиачные льды':'Hydrogen, helium, methane, ammonia ices','Ледяной гигант.':'An ice giant.',
+    'Водород, гелий, метан':'Hydrogen, helium, methane','Самая дальняя планета Солнечной системы.':'The most distant planet of the Solar System.',
+    // Предметы
+    'Лунный реголит':'Lunar regolith','Ильменитовая руда (FeTiO₃)':'Ilmenite ore (FeTiO₃)','Анортозит (CaAl₂Si₂O₈)':'Anorthosite (CaAl₂Si₂O₈)',
+    'Марсианский реголит (Fe₂O₃)':'Martian regolith (Fe₂O₃)','Гематитовая конкреция':'Hematite concretion','Водяной лёд (H₂O)':'Water ice (H₂O)',
+    'Спечённый реголитовый блок':'Sintered regolith block','Титано-железный сплав':'Titanium-iron alloy','Кремниевая пластина':'Silicon wafer',
+    'Ремкомплект / Пайки':'Repair kit / Solder','Сырьё (Марс)':'Raw material (Mars)','Сырьё':'Raw material','Минерал (Марс)':'Mineral (Mars)','Минерал':'Mineral',
+    'Летучие':'Volatiles','Стройматериал':'Building material','Металл':'Metal','Электроника':'Electronics','Снаряжение':'Equipment',
+    // Здания
+    'Солнечная панель (СБ-4)':'Solar panel (SP-4)','Аккумуляторный блок (АКБ-20)':'Battery bank (BB-20)','Ядерный РИТЭГ-3':'Nuclear RTG-3',
+    'Грузовой контейнер (СК-500)':'Cargo container (SC-500)','Жилой модуль «Селена-1»':'Habitat module "Selena-1"',
+    'Энергетика':'Power','Инфраструктура':'Infrastructure','Жизнеобеспечение':'Life support',
+    'Фотоэлектрическая установка с двухосевым трекером Солнца. Генерирует до 4.5 кВт.':'Photovoltaic array with a dual-axis sun tracker. Generates up to 4.5 kW.',
+    'Накопитель энергии 20 кВт·ч с активным термостатированием.':'20 kWh energy storage with active thermal control.',
+    'Радиоизотопный генератор. Стабильные 3.2 кВт днём, ночью и в пылевую бурю.':'Radioisotope generator. Steady 3.2 kW by day, at night and during dust storms.',
+    'Герметичный внешний складской модуль для ресурсов.':'Sealed external storage module for resources.',
+    'Герметичный отсек со шлюзом и радиационной защитой. Пополняет O₂, заряд и тепло.':'Pressurized compartment with an airlock and radiation shielding. Restores O₂, charge and heat.',
+    // Технологии
+    'Аэрогелевая термоизоляция EMU':'Aerogel EMU thermal insulation','Автономный ровер-шахтёр «Геолог-М1»':'Autonomous mining rover "Geolog-M1"',
+    'Радиоизотопный генератор (РИТЭГ-3)':'Radioisotope generator (RTG-3)','Метан-кислородный ЖРД «Арес-РД»':'Methane-oxygen engine "Ares-RD"',
+    'Материаловедение':'Materials science','Робототехника':'Robotics','Двигатели':'Propulsion',
+    'Снижает потери тепла в глубокой тени на 50%, экономя батарею скафандра.':'Reduces heat loss in deep shadow by 50%, saving suit battery.',
+    'Открывает сборку роботов с ИИ для автоматической добычи породы.':'Unlocks assembly of AI robots for automatic rock mining.',
+    'Открывает строительство автономного ядерного источника питания (3.2 кВт).':'Unlocks construction of an autonomous nuclear power source (3.2 kW).',
+    'Повышает удельный импульс (Isp = 380 с) межпланетного корабля.':'Increases the specific impulse (Isp = 380 s) of the interplanetary ship.'
+  };
+
+  // Единицы измерения и прочие шаблоны (применяются после словаря)
+  var UNIT_RULES = [
+    [/^(\d+)д /, '$1d '],
+    [/(\d) ?кВт·ч/g, '$1 kWh'], [/кВт·ч/g, 'kWh'],
+    [/(\d) ?кВт/g, '$1 kW'], [/(\d) ?Вт(?![А-Яа-яЁё])/g, '$1 W'],
+    [/км\/с/g, 'km/s'], [/(?<![А-Яа-яЁё])м\/с²/g, 'm/s²'], [/(?<![А-Яа-яЁё])м\/с(?![²А-Яа-яЁё])/g, 'm/s'],
+    [/млн км/g, 'M km'], [/а\.е\./g, 'AU'], [/сут\./g, 'days'],
+    [/(\d) ?мЗв\/ч/g, '$1 mSv/h'], [/(\d) ?кПа/g, '$1 kPa'], [/(\d) ?Па(?![А-Яа-яЁё])/g, '$1 Pa'],
+    [/(\d) ?кг(?![А-Яа-яЁё])/g, '$1 kg'], [/(\d) ?г\)/g, '$1 g)'], [/(\d) ?сек(?![А-Яа-яЁё])/g, '$1 sec'],
+    [/(\d) м(?![А-Яа-яЁё])/g, '$1 m'],
+    [/ВЫКЛ/g, 'OFF'], [/ВКЛ/g, 'ON']
+  ];
+
+  var CYR = /[А-Яа-яЁё]/;
+  var keys = Object.keys(PHRASES).sort(function (a, b) { return b.length - a.length; });
+  function esc(s) { return s.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&'); }
+  var PHRASE_RE = new RegExp(keys.map(function (k) {
+    var pre = /^[А-Яа-яЁё]/.test(k) ? '(?<![А-Яа-яЁё])' : '';
+    var post = /[А-Яа-яЁё]$/.test(k) ? '(?![А-Яа-яЁё])' : '';
+    return pre + esc(k) + post;
+  }).join('|'), 'g');
+
+  function translateText(s) {
+    if (!CYR.test(s)) return s;
+    var out = s.replace(PHRASE_RE, function (m) { return PHRASES[m]; });
+    for (var i = 0; i < UNIT_RULES.length; i++) out = out.replace(UNIT_RULES[i][0], UNIT_RULES[i][1]);
+    return out;
+  }
+
+  // ---- Применение к странице (код игры не затрагивается) ----
+  var lang = 'ru';
+  var tracked = new Map(); // textNode -> { out }, для возврата на русский
+  var originals = new WeakMap();
+
+  function processNode(node) {
+    var txt = node.data;
+    if (!CYR.test(txt)) return;
+    var out = translateText(txt);
+    if (out === txt) return;
+    if (tracked.size > 800) { tracked.forEach(function (v, n) { if (!n.isConnected) tracked.delete(n); }); }
+    originals.set(node, txt);
+    tracked.set(node, out);
+    node.data = out;
+  }
+
+  function walk(root) {
+    if (root.nodeType === 3) { processNode(root); return; }
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentNode && n.parentNode.nodeName;
+        return (p === 'SCRIPT' || p === 'STYLE') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var list = [], n;
+    while ((n = w.nextNode())) list.push(n);
+    list.forEach(processNode);
+  }
+
+  var observer = new MutationObserver(function (muts) {
+    if (lang !== 'en') return;
+    muts.forEach(function (m) {
+      if (m.type === 'characterData') processNode(m.target);
+      else m.addedNodes.forEach(function (a) { if (a.nodeType === 1 || a.nodeType === 3) walk(a); });
+    });
+  });
+
+  function restoreRussian() {
+    tracked.forEach(function (out, n) {
+      if (n.isConnected && n.data === out && originals.has(n)) n.data = originals.get(n);
+    });
+    tracked.clear();
+  }
+
+  function init() {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    // Клик по кнопкам языка (срабатывает после штатного обработчика игры)
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest || !e.target.closest('#lang-btn, #qb-lang')) return;
+      lang = (lang === 'ru') ? 'en' : 'ru';
+      if (lang === 'en') walk(document.body); else restoreRussian();
+    });
+  }
+  if (document.body) init(); else document.addEventListener('DOMContentLoaded', init);
+
+})();
   </script>
 </body>
 </html>
