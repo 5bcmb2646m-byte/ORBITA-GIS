@@ -1,0 +1,2607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Orbital Works — Rocket Assembly & Flight Simulator</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #05080f;
+  --pn: rgba(11, 16, 26, 0.86);
+  --ln: rgba(130, 185, 255, 0.24);
+  --fg: #e2ecf9;
+  --dim: #8499b5;
+  --ac: #6fd0ff;
+  --hot: #ff7730;
+  --ok: #54e89a;
+  --warn: #ffcc4d;
+  --bad: #ff5266;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.35 "Bahnschrift", "DIN Alternate", "Segoe UI", system-ui, sans-serif;
+  touch-action: none;
+  user-select: none;
+}
+#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#g_vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  background: radial-gradient(circle at center, transparent 42%, rgba(165, 18, 28, 0.55) 82%, rgba(15, 2, 4, 0.94) 100%);
+  transition: opacity 0.12s linear;
+}
+.pn {
+  background: var(--pn);
+  border: 1px solid var(--ln);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+#top {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  z-index: 12;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+#top > * { pointer-events: auto; }
+#brand {
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-size: 14px;
+  padding: 6px 10px;
+  background: var(--pn);
+  border: 1px solid var(--ln);
+  border-radius: 7px;
+}
+#brand i { color: var(--hot); font-style: normal; }
+button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--pn);
+  border: 1px solid var(--ln);
+  border-radius: 6px;
+  padding: 6px 11px;
+  cursor: pointer;
+  min-height: 32px;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+}
+button:hover { border-color: var(--ac); }
+button:active { transform: scale(0.97); }
+button.on { background: #143652; border-color: var(--ac); color: #fff; }
+button.go { background: #421c0a; border-color: var(--hot); font-weight: 600; }
+button.ok { background: #103a26; border-color: var(--ok); }
+#tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+#top-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+#q { color: var(--dim); font-size: 12px; }
+#b_lang { font-weight: 700; letter-spacing: 0.06em; border-color: rgba(255, 119, 48, 0.55); }
+
+/* VAB Assembly Panel */
+#vab {
+  position: fixed;
+  left: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 52px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+  width: min(335px, 92vw);
+  z-index: 10;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+body:not([data-m="hangar"]) #vab { display: none; }
+#vab h3 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ac); }
+.presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.part-slot {
+  background: rgba(18, 26, 40, 0.78);
+  border: 1px solid rgba(130, 185, 255, 0.16);
+  border-radius: 6px;
+  padding: 7px 8px;
+}
+.part-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); margin-bottom: 4px; }
+.part-ctrl { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.part-name { font-weight: 600; font-size: 12px; text-align: center; flex: 1; }
+.part-ctrl button { padding: 3px 9px; min-height: 26px; font-weight: 700; }
+.vab-stats {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--ln);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+.vab-stats div { display: flex; justify-content: space-between; }
+.vab-stats b { color: var(--ac); }
+
+/* Flight Telemetry & Navball */
+#tel {
+  position: fixed;
+  left: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 52px);
+  z-index: 9;
+  padding: 9px 11px;
+  min-width: 205px;
+  font-variant-numeric: tabular-nums;
+}
+#tel div { display: flex; justify-content: space-between; gap: 14px; margin: 1px 0; }
+#tel b { color: var(--ac); font-weight: 600; }
+
+#nav-panel {
+  position: fixed;
+  left: 10px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+  z-index: 9;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 20px);
+}
+#navball { width: 88px; height: 88px; border-radius: 50%; border: 2px solid var(--ln); background: #08111e; flex-shrink: 0; }
+.att-info { font-size: 12px; min-width: 145px; }
+.att-info div { display: flex; justify-content: space-between; gap: 8px; }
+.att-info b { color: var(--ac); }
+.dir-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  border-left: 1px solid var(--ln);
+  padding-left: 10px;
+}
+.dir-pad button {
+  padding: 4px 7px;
+  min-height: 26px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Mission Control */
+#mc {
+  position: fixed;
+  right: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 52px);
+  width: min(330px, 46vw);
+  z-index: 9;
+  padding: 9px 11px;
+  display: none;
+}
+#mc h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin: 6px 0 4px; }
+#polls span { display: inline-block; margin: 0 5px 4px 0; padding: 2px 6px; border: 1px solid var(--ln); border-radius: 4px; font-size: 11px; }
+.g { color: var(--ok); }
+.n { color: var(--bad); }
+#log { height: 92px; overflow: hidden; font-size: 12px; color: var(--dim); }
+#log p { margin: 2px 0; }
+#ch { width: 100%; height: 74px; display: block; }
+
+/* Interactive Tutorial Box */
+#tut {
+  position: fixed;
+  right: 10px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  width: min(340px, 92vw);
+  z-index: 11;
+  padding: 10px 12px;
+  border-color: rgba(111, 208, 255, 0.55);
+}
+#tut.hidden { display: none; }
+#tut-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+#tut-step-badge { font-size: 11px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: 0.06em; }
+#tut-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: #fff; }
+#tut-desc { font-size: 12px; color: var(--fg); line-height: 1.4; margin-bottom: 8px; }
+#tut-actions { display: flex; justify-content: space-between; gap: 6px; }
+#tut-actions button { padding: 4px 9px; min-height: 27px; font-size: 12px; }
+
+/* Bottom Controls */
+#bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 12;
+  padding: 7px 10px calc(env(safe-area-inset-bottom, 0px) + 7px);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  border-width: 1px 0 0;
+}
+#bar .grp { display: none; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+body[data-m="hangar"] #g-h, body:not([data-m="hangar"]) #g-l { display: flex; }
+body[data-m="hangar"] #tel, body[data-m="hangar"] #mc, body[data-m="hangar"] #nav-panel { display: none; }
+body[data-m="mission"] #mc { display: block; }
+input[type="range"] { width: 105px; accent-color: var(--hot); }
+
+#hint {
+  position: fixed;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  color: var(--dim);
+  font-size: 12px;
+  max-width: 38ch;
+  text-align: right;
+  pointer-events: none;
+  background: rgba(6, 10, 18, 0.65);
+  padding: 6px 9px;
+  border-radius: 6px;
+}
+body:not(.no-tut) #hint { display: none; }
+#msg {
+  position: fixed;
+  left: 50%; top: 34%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  pointer-events: none;
+  z-index: 15;
+  text-shadow: 0 2px 20px #000, 0 0 8px #000;
+}
+@media (max-width: 820px) {
+  #hint { display: none !important; }
+  #vab { max-height: 44vh; bottom: auto; }
+  #nav-panel { bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); }
+  #mc { top: auto; bottom: 196px; width: calc(100vw - 20px); }
+  #log { height: 48px; }
+}
+</style>
+</head>
+<body data-m="hangar">
+<canvas id="c"></canvas>
+<div id="g_vignette"></div>
+
+<!-- Top Navigation -->
+<div id="top">
+  <span id="brand">ORBITAL <i>WORKS</i></span>
+  <div id="tabs">
+    <button data-m="hangar" class="on" data-i18n="tab_hangar">Ангар / Сборка</button>
+    <button data-m="mission" data-i18n="tab_mc">Центр управления</button>
+    <button data-m="launch" data-i18n="tab_launch">Пуск</button>
+    <button data-m="space" data-i18n="tab_space">Космос</button>
+  </div>
+  <div id="top-right">
+    <button id="b_tut" class="on" data-i18n="btn_tut">Обучение</button>
+    <span id="q"></span>
+    <button id="b_lang" title="Switch Language / Сменить язык">EN / RU</button>
+  </div>
+</div>
+
+<!-- Hangar VAB Rocket Builder -->
+<div id="vab" class="pn">
+  <h3 data-i18n="vab_title">Конструктор ракеты (VAB)</h3>
+  <div class="presets">
+    <button id="pr_light" data-i18n="pr_light">Лёгкая</button>
+    <button id="pr_med" class="on" data-i18n="pr_med">Средняя</button>
+    <button id="pr_heavy" data-i18n="pr_heavy">Тяжёлая</button>
+  </div>
+  <div id="vab-slots"></div>
+  <div class="vab-stats">
+    <div><span data-i18n="st_mass">Стартовая масса</span><b id="v_mass">—</b></div>
+    <div><span data-i18n="st_twr">Тяговооруж. (TWR)</span><b id="v_twr">—</b></div>
+    <div><span data-i18n="st_dv">Запас Δv</span><b id="v_dv">—</b></div>
+    <div><span data-i18n="st_stab">Устойчивость</span><b id="v_stab">—</b></div>
+  </div>
+</div>
+
+<!-- Telemetry -->
+<div id="tel" class="pn">
+  <div><span data-i18n="tel_met">Время полёта</span><b id="t_met">T-10.0</b></div>
+  <div><span data-i18n="tel_alt">Высота</span><b id="t_alt">0 м</b></div>
+  <div><span data-i18n="tel_v">Скорость</span><b id="t_v">0 м/с</b></div>
+  <div><span data-i18n="tel_ap">Апогей / перигей</span><b id="t_ap">—</b></div>
+  <div><span data-i18n="tel_st">Ступень / тяга</span><b id="t_st">1 / 0%</b></div>
+  <div><span data-i18n="tel_m">Масса</span><b id="t_m">—</b></div>
+  <div><span data-i18n="tel_g">Перегрузка / Max-Q</span><b id="t_g">—</b></div>
+  <div><span data-i18n="tel_temp">Темп. снаружи / внутри</span><b id="t_temp">+18°C / +21°C</b></div>
+  <div><span data-i18n="tel_ph">Фаза полёта</span><b id="t_ph">на старте</b></div>
+</div>
+
+<!-- Navball & Flight Director -->
+<div id="nav-panel" class="pn">
+  <canvas id="navball" width="88" height="88"></canvas>
+  <div class="att-info">
+    <div><span data-i18n="nav_pit">Тангаж / Цель</span><b id="n_pit">0° / 0°</b></div>
+    <div><span data-i18n="nav_aoa">Угол атаки (AoA)</span><b id="n_aoa">0.0°</b></div>
+    <div><span data-i18n="nav_rate">Угл. скорость</span><b id="n_rate">0.0 °/с</b></div>
+    <div><span data-i18n="nav_sas">Стабилизация SAS</span><b id="n_sas" class="g">АКТИВНА</b></div>
+  </div>
+  <div class="dir-pad">
+    <button id="d_up" data-dir="up" data-i18n="dir_up">Зенит ↑</button>
+    <button id="d_pro" data-dir="pro" data-i18n="dir_pro">Проград ⊕</button>
+    <button id="d_ret" data-dir="ret" data-i18n="dir_ret">Ретро ⊗</button>
+    <button id="d_radp" data-dir="radp" data-i18n="dir_radp">Радиус +</button>
+    <button id="d_hor" data-dir="hor" data-i18n="dir_hor">Горизонт →</button>
+    <button id="d_radm" data-dir="radm" data-i18n="dir_radm">Радиус −</button>
+    <button id="d_m5" title="-5°">−5°</button>
+    <button id="d_man" data-dir="man" class="on" data-i18n="dir_man">Ручной</button>
+    <button id="d_p5" title="+5°">+5°</button>
+  </div>
+</div>
+
+<!-- Mission Control -->
+<div id="mc" class="pn">
+  <h4 data-i18n="mc_poll">Опрос готовности систем</h4>
+  <div id="polls"></div>
+  <h4 data-i18n="mc_chart">Высота (синий) и скорость (оранжевый)</h4>
+  <canvas id="ch" width="320" height="74"></canvas>
+  <h4 data-i18n="mc_log">Бортовой журнал телеметрии</h4>
+  <div id="log"></div>
+</div>
+
+<!-- Interactive Flight Tutorial -->
+<div id="tut" class="pn">
+  <div id="tut-head">
+    <span id="tut-step-badge">ШАГ 1 / 6</span>
+    <button id="tut-close" style="padding:2px 7px;min-height:22px;font-size:11px">✕</button>
+  </div>
+  <div id="tut-title">Сборка ракеты</div>
+  <div id="tut-desc">Выберите детали или пресет ракеты в левом меню и перейдите на стартовый стол.</div>
+  <div id="tut-actions">
+    <button id="tut-prev" data-i18n="tut_prev">← Назад</button>
+    <button id="tut-next" class="ok" data-i18n="tut_next">Далее →</button>
+  </div>
+</div>
+
+<div id="msg"></div>
+<div id="hint"></div>
+
+<!-- Bottom Action Bar -->
+<div id="bar" class="pn">
+  <div id="g-h" class="grp">
+    <button id="h_ov" class="on" data-i18n="cam_ov">Обзор</button>
+    <button id="h_top" data-i18n="cam_top">Обтекатель</button>
+    <button id="h_eng" data-i18n="cam_eng">Двигатели</button>
+    <button id="h_fl" data-i18n="cam_fly">Свободный полёт</button>
+  </div>
+  <div id="g-l" class="grp">
+    <button id="b_go" class="go" data-i18n="btn_go">Обратный отсчёт</button>
+    <button id="b_st" data-i18n="btn_stage">Разделение</button>
+    <button id="b_sas" class="ok" data-i18n="btn_sas_on">SAS: ON</button>
+    <button id="b_au" class="on" data-i18n="btn_auto">Автопилот</button>
+    <button id="b_pl" title="Pitch Left / Влево">◀</button>
+    <button id="b_pr" title="Pitch Right / Вправо">▶</button>
+    <label><span data-i18n="lbl_thr">Тяга</span> <input id="b_th" type="range" min="0" max="100" value="0"></label>
+    <div style="display:inline-flex;gap:2px;align-items:center">
+      <button id="b_wm" title="Замедлить время (-)">«</button>
+      <button id="b_wp" title="Ускорить время (+)">×1</button>
+      <button id="b_wpl" title="Ускорить время (+)">»</button>
+    </div>
+    <button id="b_cm" data-i18n="btn_cam">Камера</button>
+    <button id="b_fl" data-i18n="btn_fly">Полёт</button>
+    <button id="b_rs" data-i18n="btn_reset">Сброс</button>
+  </div>
+  <button id="b_q" data-i18n="btn_qual">Графика</button>
+  <button id="b_au2" data-i18n="btn_snd">Звук</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+addEventListener('error', e => {
+  const m = document.getElementById('msg');
+  if (m) m.textContent = 'Error: ' + e.message;
+});
+
+const $ = s => document.querySelector(s);
+const V3 = THREE.Vector3;
+const Z = new V3(0, 0, 1);
+const TAU = Math.PI * 2;
+const R = 6371e3, MU = 3.986e14, G0 = 9.80665;
+const touch = matchMedia('(pointer:coarse)').matches;
+
+/* ==========================================================================
+   1. INTERNATIONALIZATION (RU / EN)
+   ========================================================================== */
+let lang = 'ru';
+const I18N = {
+  ru: {
+    tab_hangar: 'Ангар / Сборка',
+    tab_mc: 'Центр управления',
+    tab_launch: 'Пуск',
+    tab_space: 'Космос',
+    btn_tut: 'Обучение',
+    vab_title: 'Конструктор ракеты (VAB)',
+    pr_light: 'Лёгкая',
+    pr_med: 'Средняя',
+    pr_heavy: 'Тяжёлая',
+    st_mass: 'Стартовая масса',
+    st_twr: 'Тяговооруж. (TWR)',
+    st_dv: 'Запас Δv',
+    st_stab: 'Устойчивость',
+    stab_high: 'Отличная',
+    stab_med: 'Норма',
+    stab_low: 'Низкая (нужен SAS)',
+    tel_met: 'Время полёта',
+    tel_alt: 'Высота',
+    tel_v: 'Скорость',
+    tel_ap: 'Апогей / перигей',
+    tel_st: 'Ступень / тяга',
+    tel_m: 'Масса',
+    tel_g: 'Перегрузка / Max-Q',
+    tel_temp: 'Темп. снаружи / внутри',
+    tel_ph: 'Фаза полёта',
+    nav_pit: 'Тангаж / Цель',
+    nav_aoa: 'Угол атаки (AoA)',
+    nav_rate: 'Угл. скорость',
+    nav_sas: 'Стабилизация SAS',
+    sas_active: 'АКТИВНА (PID)',
+    sas_off: 'ОТКЛЮЧЕНА',
+    dir_up: 'Зенит ↑',
+    dir_pro: 'Проград ⊕',
+    dir_ret: 'Ретро ⊗',
+    dir_radp: 'Радиус +',
+    dir_hor: 'Горизонт →',
+    dir_radm: 'Радиус −',
+    dir_man: 'Ручной',
+    mc_poll: 'Опрос готовности систем',
+    mc_chart: 'Высота (синий) и скорость (оранжевый)',
+    mc_log: 'Бортовой журнал телеметрии',
+    cam_ov: 'Обзор',
+    cam_top: 'Обтекатель',
+    cam_eng: 'Двигатели',
+    cam_fly: 'Свободный полёт',
+    btn_go: 'Обратный отсчёт',
+    btn_stage: 'Разделение',
+    btn_sas_on: 'SAS: ON',
+    btn_sas_off: 'SAS: OFF',
+    btn_auto: 'Автопилот',
+    lbl_thr: 'Тяга',
+    btn_cam: 'Камера',
+    btn_fly: 'Полёт',
+    btn_reset: 'Сброс',
+    btn_qual: 'Графика',
+    btn_snd: 'Звук',
+    tut_prev: '← Назад',
+    tut_next: 'Далее →',
+    tut_done: 'Готово ✓',
+    tut_step_lbl: 'ШАГ',
+    tut_steps: [
+      { title: '1. Сборка ракеты в ангаре', desc: 'Слева в конструкторе VAB выберите пресет («Лёгкая», «Средняя», «Тяжёлая») или настройте ступени и стабилизаторы. Убедитесь, что TWR > 1.25.' },
+      { title: '2. Переход на стартовый стол', desc: 'Нажмите вкладку «Пуск» или «Центр управления» в верхнем меню, чтобы вывезти ракету на стартовую площадку.' },
+      { title: '3. Обратный отсчёт и старт', desc: 'Нажмите оранжевую кнопку «Обратный отсчёт» (или Enter). Системы пройдут проверку GO/NO-GO и запустят двигатели.' },
+      { title: '4. Набор высоты и управление курсом', desc: 'Следите за углом атаки на авиагоризонте. Вы можете включить «Автопилот» или задавать направление кнопками «Проград», «Горизонт» и A/D.' },
+      { title: '5. Отделение первой ступени', desc: 'Когда топливо 1-й ступени закончится (~65–75 км), произойдёт разделение, а на высоте 72 км сбросится головной обтекатель.' },
+      { title: '6. Выход на орбиту Земли', desc: 'Разгоните аппарат до ~7.8 км/с и поднимите перигей выше 160 км, чтобы выйти на устойчивую орбиту вокруг Земли!' }
+    ],
+    q_label: 'Графика: ',
+    q_names: ['Авто-FPS', 'Баланс', 'Ультра'],
+    ph_pad: 'на старте',
+    ph_ascent: 'активный подъём',
+    ph_orbit: 'на орбите',
+    ph_crash: 'разрушение',
+    log_ready: 'Ракета установлена на стартовый стол.',
+    log_nogo: 'Опрос систем: обнаружен NO-GO, задержка пуска.',
+    log_go: 'Все службы GO. Запущен обратный отсчёт!',
+    log_ign: 'Зажигание двигателей первой ступени.',
+    log_liftoff: 'Контакт подъёма! Ракета оторвалась от стола.',
+    log_boost_sep: 'Отделение боковых ускорителей.',
+    log_fairing: 'Сброс головного обтекателя.',
+    log_stage: 'Разделение ступеней. Запуск маршевого ЖРД 2-й ступени.',
+    log_orbit: 'Орбита сформирована: ',
+    log_crash: 'Авария: разрушение конструкции от перегрузок или удара.',
+    log_suborb: 'Топливо исчерпано на суборбитальной траектории.',
+    log_sas_on: 'Система стабилизации SAS включена.',
+    log_sas_off: 'ВНИМАНИЕ: Стабилизация SAS отключена!',
+    log_auto_on: 'Автопилот выведения активирован.',
+    log_auto_off: 'Ручное управление ориентацией.',
+    log_demo: 'Демонстрационная орбита ~420 км над Землёй.',
+    say_nogo: 'ПАУЗА: ОТКАЗ СИСТЕМЫ (NO-GO)',
+    say_liftoff: 'ПУСК!',
+    say_orbit: 'ОРБИТА ДОСТИГНУТА!',
+    say_crash: 'РАЗРУШЕНИЕ АППАРАТА',
+    say_overg: 'РАЗРУШЕНИЕ ОТ ПЕРЕГРУЗКИ (MAX-Q)',
+    say_overheat: 'ПЕРЕГРЕВ КОРПУСА ПРИ ВХОДЕ В АТМОСФЕРУ',
+    hint_hangar: 'Соберите ракету слева: обтекатель, ступени, двигатели, ускорители, стабилизаторы. ПКМ/палец — вращать камеру, колесо/щипок — зум, WASD+F — свободный полёт.',
+    hint_mc: 'Центр управления: запустите отсчёт и контролируйте телеметрию и график выведения.',
+    hint_flight: 'Z/X — тяга, A/D — ручной тангаж, кнопки навигации — векторы полёта, Пробел — разделение, S — SAS, T — автопилот.',
+    slots: [
+      { key: 'payload', label: 'Головной блок / Обтекатель' },
+      { key: 's2', label: 'Вторая ступень' },
+      { key: 's1tank', label: 'Топливный бак 1-й ступени' },
+      { key: 's1eng', label: 'Двигательная установка 1-й ст.' },
+      { key: 'boosters', label: 'Боковые ускорители' },
+      { key: 'fins', label: 'Аэродинамика и стабилизация' }
+    ],
+    poll_names: ['Двигатели', 'Наведение/SAS', 'Баллистика', 'Полигон', 'Погода']
+  },
+  en: {
+    tab_hangar: 'Hangar / VAB',
+    tab_mc: 'Mission Control',
+    tab_launch: 'Launch',
+    tab_space: 'Orbit View',
+    btn_tut: 'Tutorial',
+    vab_title: 'Vehicle Assembly (VAB)',
+    pr_light: 'Light',
+    pr_med: 'Medium',
+    pr_heavy: 'Heavy',
+    st_mass: 'Liftoff Mass',
+    st_twr: 'Thrust / Weight',
+    st_dv: 'Total Δv',
+    st_stab: 'Aero Stability',
+    stab_high: 'High',
+    stab_med: 'Nominal',
+    stab_low: 'Low (Keep SAS ON)',
+    tel_met: 'Mission Time',
+    tel_alt: 'Altitude',
+    tel_v: 'Velocity',
+    tel_ap: 'Apoapsis / Periapsis',
+    tel_st: 'Stage / Throttle',
+    tel_m: 'Total Mass',
+    tel_g: 'G-Load / Max-Q',
+    tel_temp: 'Ext / Cabin Temp',
+    tel_ph: 'Flight Phase',
+    nav_pit: 'Pitch / Target',
+    nav_aoa: 'Angle of Attack',
+    nav_rate: 'Angular Rate',
+    nav_sas: 'SAS Stabilization',
+    sas_active: 'ACTIVE (PID)',
+    sas_off: 'DISABLED',
+    dir_up: 'Zenith ↑',
+    dir_pro: 'Prograde ⊕',
+    dir_ret: 'Retro ⊗',
+    dir_radp: 'Radial +',
+    dir_hor: 'Horizon →',
+    dir_radm: 'Radial −',
+    dir_man: 'Manual',
+    mc_poll: 'Go / No-Go Readiness Poll',
+    mc_chart: 'Altitude (Blue) & Velocity (Orange)',
+    mc_log: 'Telemetry Flight Log',
+    cam_ov: 'Overview',
+    cam_top: 'Fairing',
+    cam_eng: 'Engines',
+    cam_fly: 'Free Fly',
+    btn_go: 'Start Countdown',
+    btn_stage: 'Stage Sep',
+    btn_sas_on: 'SAS: ON',
+    btn_sas_off: 'SAS: OFF',
+    btn_auto: 'Autopilot',
+    lbl_thr: 'Throttle',
+    btn_cam: 'Camera',
+    btn_fly: 'Free Fly',
+    btn_reset: 'Reset',
+    btn_qual: 'Graphics',
+    btn_snd: 'Audio',
+    tut_prev: '← Prev',
+    tut_next: 'Next →',
+    tut_done: 'Done ✓',
+    tut_step_lbl: 'STEP',
+    tut_steps: [
+      { title: '1. Assemble Your Rocket', desc: 'Use the VAB panel on the left to pick a preset (Light, Medium, Heavy) or customize stages and stabilizers. Make sure Liftoff TWR > 1.25.' },
+      { title: '2. Roll Out to Launchpad', desc: 'Click the "Launch" or "Mission Control" tab in the top bar to transfer your rocket to the launch complex.' },
+      { title: '3. Start the Countdown', desc: 'Press the orange "Start Countdown" button (or Enter). Flight systems will run a GO/NO-GO poll and ignite the engines.' },
+      { title: '4. Ascent & Flight Direction', desc: 'Monitor Angle of Attack on the Navball. Keep Autopilot ON or steer manually using Prograde, Horizon, or A/D keys.' },
+      { title: '5. Stage Separation', desc: 'When Stage 1 depletes (~65–75 km), separation occurs automatically. At 72 km the payload fairing jettisons.' },
+      { title: '6. Achieve Earth Orbit', desc: 'Accelerate to orbital velocity (~7.8 km/s) and raise your periapsis above 160 km to establish a stable orbit!' }
+    ],
+    q_label: 'Graphics: ',
+    q_names: ['Auto-FPS', 'Balanced', 'Ultra'],
+    ph_pad: 'on launchpad',
+    ph_ascent: 'powered ascent',
+    ph_orbit: 'in orbit',
+    ph_crash: 'vehicle lost',
+    log_ready: 'Rocket rolled out to launchpad.',
+    log_nogo: 'Readiness poll: NO-GO detected, launch hold.',
+    log_go: 'All stations GO. Terminal countdown started!',
+    log_ign: 'First stage main engine ignition.',
+    log_liftoff: 'Liftoff! We have liftoff.',
+    log_boost_sep: 'Side boosters jettisoned.',
+    log_fairing: 'Payload fairing jettisoned.',
+    log_stage: 'Stage separation confirmed. Upper stage ignition.',
+    log_orbit: 'Orbit achieved: ',
+    log_crash: 'Critical failure: structural breakup or ground impact.',
+    log_suborb: 'Propellant depleted on suborbital trajectory.',
+    log_sas_on: 'SAS Attitude Stabilization enabled.',
+    log_sas_off: 'WARNING: SAS Stabilization disabled!',
+    log_auto_on: 'Guidance autopilot engaged.',
+    log_auto_off: 'Manual attitude control active.',
+    log_demo: 'Demo orbit ~420 km above Earth.',
+    say_nogo: 'HOLD: SYSTEM NO-GO',
+    say_liftoff: 'LIFTOFF!',
+    say_orbit: 'ORBIT ACHIEVED!',
+    say_crash: 'VEHICLE DESTROYED',
+    say_overg: 'STRUCTURAL BREAKUP (MAX-Q)',
+    say_overheat: 'THERMAL SHIELD OVERHEAT',
+    hint_hangar: 'Customize fairing, stages, engines, boosters & stabilizers on the left. Drag to orbit camera, scroll/pinch to zoom, WASD+F for free flight.',
+    hint_mc: 'Mission Control: start countdown and monitor telemetry & ascent profile.',
+    hint_flight: 'Z/X throttle, A/D manual pitch, Navball buttons for flight vectors, Space to stage, S for SAS, T for Autopilot.',
+    slots: [
+      { key: 'payload', label: 'Payload & Fairing' },
+      { key: 's2', label: 'Upper Stage' },
+      { key: 's1tank', label: 'Core Stage Tank' },
+      { key: 's1eng', label: 'Core Engine Cluster' },
+      { key: 'boosters', label: 'Strap-on Boosters' },
+      { key: 'fins', label: 'Aero Fins & Stabilization' }
+    ],
+    poll_names: ['Propulsion', 'Guidance/SAS', 'Range Safety', 'Telemetry', 'Weather']
+  }
+};
+const t = k => I18N[lang][k] || k;
+
+/* ==========================================================================
+   2. MODULAR ROCKET PARTS CATALOG (VAB)
+   ========================================================================== */
+const PARTS = {
+  payload: [
+    { id: 'pl_sat', ru: 'Спутник связи (4.5 т)', en: 'Comms Satellite (4.5 t)', mass: 4500, h: 9.5, r: 1.85, drag: 0.24, style: 'cone' },
+    { id: 'pl_fairing', ru: 'Большой обтекатель (8 т)', en: 'Large Payload Fairing (8 t)', mass: 8000, h: 12.5, r: 2.35, drag: 0.28, style: 'bulb' },
+    { id: 'pl_crew', ru: 'Пилотируемый корабль + САС', en: 'Crewed Capsule + LES Tower', mass: 11500, h: 11.5, r: 1.95, drag: 0.26, style: 'crew' },
+    { id: 'pl_station', ru: 'Орбитальный модуль (16 т)', en: 'Heavy Station Module (16 t)', mass: 16000, h: 14.0, r: 2.45, drag: 0.32, style: 'bulb' }
+  ],
+  s2: [
+    { id: 's2_std', ru: 'Блок S2-Стандарт (82 т)', en: 'S2-Standard Stage (82 t)', dry: 4000, fuel: 82000, F: 980e3, i0: 348, i1: 355, h: 13, r: 1.85 },
+    { id: 's2_cryo', ru: 'Криогенный блок LH2 (110 т)', en: 'Cryo LH2 Upper Stage (110 t)', dry: 5200, fuel: 110000, F: 1250e3, i0: 415, i1: 425, h: 16, r: 1.85 },
+    { id: 's2_light', ru: 'Лёгкий разгонный блок (45 т)', en: 'Light Kick Stage (45 t)', dry: 2400, fuel: 45000, F: 560e3, i0: 335, i1: 342, h: 9.5, r: 1.65 }
+  ],
+  s1tank: [
+    { id: 't1_std', ru: 'Бак RP-1 Стандарт (380 т)', en: 'RP-1 Standard Tank (380 t)', dry: 21000, fuel: 380000, h: 34, r: 1.85 },
+    { id: 't1_ext', ru: 'Удлинённый бак (490 т)', en: 'Extended Core Tank (490 t)', dry: 26500, fuel: 490000, h: 42, r: 1.85 },
+    { id: 't1_wide', ru: 'Широкий бак 4.4м (620 т)', en: 'Widebody 4.4m Tank (620 t)', dry: 34000, fuel: 620000, h: 38, r: 2.2 }
+  ],
+  s1eng: [
+    { id: 'e_9', ru: '9× ЖРД "Мерлин-М" (7.6 МН)', en: '9× Merlin-M Cluster (7.6 MN)', count: 9, dry: 4500, F: 7.6e6, i0: 282, i1: 311, gimbal: 1.0 },
+    { id: 'e_12', ru: '12× ЖРД Форсаж (10.4 МН)', en: '12× Uprated Cluster (10.4 MN)', count: 12, dry: 6200, F: 10.4e6, i0: 286, i1: 315, gimbal: 1.25 },
+    { id: 'e_5', ru: '5× ЖРД "Вулкан" (5.4 МН)', en: '5× Vulcan Heavy (5.4 MN)', count: 5, dry: 3800, F: 5.4e6, i0: 295, i1: 322, gimbal: 0.9 },
+    { id: 'e_3', ru: '3× ЖРД "Атлас-Л" (3.6 МН)', en: '3× Atlas-L Light (3.6 MN)', count: 3, dry: 2400, F: 3.6e6, i0: 290, i1: 318, gimbal: 0.85 }
+  ],
+  boosters: [
+    { id: 'b_none', ru: 'Без боковых ускорителей', en: 'No Side Boosters', count: 0, dry: 0, fuel: 0, F: 0, isp: 265, burn: 0, drag: 0 },
+    { id: 'b_2srb', ru: '2× Твердотопливных Ускорителя', en: '2× Solid Rocket Boosters', count: 2, dry: 9000, fuel: 110000, F: 3400e3, isp: 268, burn: 75, drag: 0.08 },
+    { id: 'b_4srb', ru: '4× Тяжёлых Ускорителя (Пакет)', en: '4× Heavy Strap-On Boosters', count: 4, dry: 18000, fuel: 220000, F: 6800e3, isp: 268, burn: 75, drag: 0.16 },
+    { id: 'b_2liq', ru: '2× Жидкостных боковых блока', en: '2× Liquid Core Boosters', count: 2, dry: 14000, fuel: 190000, F: 4600e3, isp: 295, burn: 105, drag: 0.10 }
+  ],
+  fins: [
+    { id: 'f_grid', ru: '4× Решётчатых руля + Гиродины', en: '4× Grid Fins + CMG Gyros', mass: 1200, stab: 1.45, rcs: 1.5, style: 'grid' },
+    { id: 'f_delta', ru: '4× Больших дельта-стабилизатора', en: '4× Large Delta Aero-Fins', mass: 1800, stab: 2.05, rcs: 1.2, style: 'delta' },
+    { id: 'f_hex_delta', ru: '6× Усиленных стреловидных крыльев', en: '6× Heavy Swept Stabilizers', mass: 2500, stab: 2.65, rcs: 1.4, style: 'hex_delta' },
+    { id: 'f_active_canard', ru: 'Активные рули (Нос + Хвост) + CMG', en: 'Active Canards + Tail Fins + CMG', mass: 2100, stab: 2.35, rcs: 2.2, style: 'canard' },
+    { id: 'f_double_grid', ru: '8× Титановых решётчатых рулей', en: '8× Titanium Dual Grid Fins', mass: 1650, stab: 1.95, rcs: 1.9, style: 'double_grid' },
+    { id: 'f_rcs', ru: 'Только реактивные сопла RCS', en: 'RCS Thrusters Only (No Fins)', mass: 600, stab: 0.45, rcs: 1.8, style: 'none' }
+  ]
+};
+
+const cfg = { payload: 0, s2: 0, s1tank: 0, s1eng: 0, boosters: 0, fins: 0 };
+const getPart = k => PARTS[k][cfg[k]];
+
+/* ==========================================================================
+   3. RENDERER & ADAPTIVE QUALITY ENGINE (AUTO-FPS SCALING)
+   ========================================================================== */
+const ren = new THREE.WebGLRenderer({
+  canvas: $('#c'),
+  antialias: !touch,
+  logarithmicDepthBuffer: true,
+  powerPreference: 'high-performance'
+});
+ren.toneMapping = THREE.ACESFilmicToneMapping;
+ren.toneMappingExposure = 1.18;
+ren.outputEncoding = THREE.sRGBEncoding;
+ren.shadowMap.enabled = true;
+ren.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const QS = [
+  [1.5, 1024, true, true, true],     // Adaptive Auto-FPS
+  [1.25, 1024, true, true, false],   // Balanced
+  [2.0, 2048, true, true, false]     // Ultra
+];
+let qi = 0;
+let dynamicScale = 1.0;
+let fpsAcc = 0, fpsFrames = 0, fpsTimer = 0;
+const cam = new THREE.PerspectiveCamera(60, 1, 0.3, 5e7);
+let spot, clouds;
+
+function applyQ() {
+  const [p, s, sh, cl, isAuto] = QS[qi];
+  const effectiveRatio = Math.max(0.65, Math.min(devicePixelRatio, p) * (isAuto ? dynamicScale : 1.0));
+  ren.setPixelRatio(effectiveRatio);
+  ren.setSize(innerWidth, innerHeight);
+  ren.shadowMap.enabled = sh;
+  cam.aspect = innerWidth / innerHeight;
+  cam.updateProjectionMatrix();
+  const m = touch ? Math.min(s, 1024) : s;
+  if (spot) {
+    spot.castShadow = sh;
+    spot.shadow.mapSize.set(m, m);
+    if (spot.shadow.map) {
+      spot.shadow.map.dispose();
+      spot.shadow.map = null;
+    }
+  }
+  if (clouds) {
+    clouds.visible = cl;
+  }
+  const suffix = isAuto ? ` (${Math.round(dynamicScale * 100)}%)` : '';
+  if ($('#q')) $('#q').textContent = t('q_label') + t('q_names')[qi] + suffix;
+}
+addEventListener('resize', () => applyQ());
+
+function updateAdaptiveQuality(dt) {
+  if (!QS[qi][4]) return;
+  fpsAcc += 1 / Math.max(0.001, dt);
+  fpsFrames++;
+  fpsTimer += dt;
+  if (fpsTimer >= 1.5) {
+    const avgFps = fpsAcc / fpsFrames;
+    let changed = false;
+    if (avgFps < 34 && dynamicScale > 0.72) {
+      dynamicScale = Math.max(0.72, dynamicScale - 0.12);
+      changed = true;
+    } else if (avgFps > 54 && dynamicScale < 1.0) {
+      dynamicScale = Math.min(1.0, dynamicScale + 0.08);
+      changed = true;
+    }
+    if (changed) applyQ();
+    fpsAcc = 0; fpsFrames = 0; fpsTimer = 0;
+  }
+}
+
+/* ==========================================================================
+   4. PROGRESSIVE NON-BLOCKING PROCEDURAL PLANET TEXTURES
+   ========================================================================== */
+const PERM = new Uint8Array(512);
+for (let i = 0; i < 256; i++) PERM[i] = i;
+for (let i = 255; i > 0; i--) {
+  const j = Math.abs((Math.sin(i * 91.3458) * 47453.5453) % (i + 1) | 0);
+  const tmp = PERM[i]; PERM[i] = PERM[j]; PERM[j] = tmp;
+}
+for (let i = 0; i < 256; i++) PERM[i + 256] = PERM[i];
+
+function vn(x, y, z) {
+  const ix = Math.floor(x) & 255, iy = Math.floor(y) & 255, iz = Math.floor(z) & 255;
+  const fx = x - Math.floor(x), fy = y - Math.floor(y), fz = z - Math.floor(z);
+  const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy), uz = fz * fz * (3 - 2 * fz);
+  const A = PERM[ix] + iy, AA = PERM[A] + iz, AB = PERM[A + 1] + iz;
+  const B = PERM[ix + 1] + iy, BA = PERM[B] + iz, BB = PERM[B + 1] + iz;
+  const h = idx => PERM[idx] / 255;
+  const lerp = (a, b, t) => a + t * (b - a);
+  return lerp(
+    lerp(lerp(h(AA), h(BA), ux), lerp(h(AB), h(BB), ux), uy),
+    lerp(lerp(h(AA + 1), h(BA + 1), ux), lerp(h(AB + 1), h(BB + 1), ux), uy),
+    uz
+  );
+}
+const fbm = (x, y, z, o = 4) => {
+  let s = 0, a = 0.5;
+  for (let i = 0; i < o; i++) {
+    s += a * vn(x, y, z);
+    x *= 2; y *= 2; z *= 2;
+    a /= 2;
+  }
+  return s;
+};
+
+function createProgressiveSphereTex(W, H, f, hasAlpha = false, rowsPerFrame = 32) {
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = hasAlpha ? 'rgba(0,0,0,0)' : '#0b2545';
+  g.fillRect(0, 0, W, H);
+  const tx = new THREE.CanvasTexture(c);
+  tx.encoding = THREE.sRGBEncoding;
+  tx.anisotropy = 4;
+
+  const d = g.createImageData(W, rowsPerFrame);
+  const cosLo = new Float32Array(W), sinLo = new Float32Array(W);
+  for (let i = 0; i < W; i++) {
+    const lo = (i / W) * TAU;
+    cosLo[i] = Math.cos(lo);
+    sinLo[i] = Math.sin(lo);
+  }
+  let row = 0;
+  function stepRows() {
+    const endRow = Math.min(H, row + rowsPerFrame);
+    for (let j = row; j < endRow; j++) {
+      const la = (0.5 - j / H) * Math.PI, cy = Math.cos(la), sy = Math.sin(la);
+      const localJ = j - row;
+      for (let i = 0; i < W; i++) {
+        const k = (localJ * W + i) * 4;
+        const p = f(cy * cosLo[i], sy, cy * sinLo[i]);
+        d.data[k] = p[0]; d.data[k + 1] = p[1]; d.data[k + 2] = p[2];
+        d.data[k + 3] = hasAlpha ? p[3] : 255;
+      }
+    }
+    g.putImageData(d, 0, row, 0, 0, W, endRow - row);
+    tx.needsUpdate = true;
+    row = endRow;
+    if (row < H) requestAnimationFrame(stepRows);
+  }
+  requestAnimationFrame(stepRows);
+  return tx;
+}
+
+const earthTex = createProgressiveSphereTex(1024, 512, (x, y, z) => {
+  const cont = fbm(x * 1.65 + 4.2, y * 1.65 - 1.3, z * 1.65 + 7.1, 5);
+  const ridge = 1.0 - Math.abs(fbm(x * 5.2 + 11, y * 5.2, z * 5.2, 4) * 2.0 - 1.0);
+  const detail = fbm(x * 16, y * 16, z * 16, 3);
+  const lat = Math.abs(y);
+  const moisture = fbm(x * 2.8 - 5, y * 2.8 + 8, z * 2.8, 3);
+
+  let r, g, b;
+  const seaLevel = 0.505;
+  if (cont < seaLevel) {
+    const depth = (seaLevel - cont) / seaLevel;
+    const shelf = Math.exp(-depth * 18.0);
+    r = 5 + shelf * 24 + detail * 6;
+    g = 24 + shelf * 88 + detail * 10;
+    b = 68 + shelf * 92 + detail * 12;
+  } else {
+    const h = Math.min(1.0, (cont - seaLevel) / (1.0 - seaLevel));
+    const mountain = Math.pow(h, 1.35) * (0.65 + 0.55 * ridge);
+    const arid = Math.max(0, Math.min(1, (1.0 - moisture) * 1.6 - Math.abs(lat - 0.28) * 1.4));
+    let lr = 34 + 35 * detail;
+    let lg = 88 + 42 * detail;
+    let lb = 32 + 18 * detail;
+    lr = lr * (1 - arid) + (198 + 25 * detail) * arid;
+    lg = lg * (1 - arid) + (164 + 22 * detail) * arid;
+    lb = lb * (1 - arid) + (108 + 18 * detail) * arid;
+    const rock = Math.min(1, mountain * 2.1);
+    r = lr * (1 - rock) + (105 + 30 * ridge) * rock;
+    g = lg * (1 - rock) + (98 + 28 * ridge) * rock;
+    b = lb * (1 - rock) + (92 + 25 * ridge) * rock;
+    if (mountain > 0.44) {
+      const snow = Math.min(1, (mountain - 0.44) * 4.5);
+      r = r * (1 - snow) + 242 * snow;
+      g = g * (1 - snow) + 245 * snow;
+      b = b * (1 - snow) + 250 * snow;
+    }
+  }
+  const polarEdge = 0.83 + 0.06 * vn(x * 8, y * 8, z * 8);
+  if (lat > polarEdge) {
+    const ice = Math.min(1, (lat - polarEdge) * 18);
+    r = r * (1 - ice) + 238 * ice;
+    g = g * (1 - ice) + 244 * ice;
+    b = b * (1 - ice) + 252 * ice;
+  }
+  return [
+    Math.max(0, Math.min(255, r)),
+    Math.max(0, Math.min(255, g)),
+    Math.max(0, Math.min(255, b))
+  ];
+}, false, 32);
+
+const cloudTex = createProgressiveSphereTex(1024, 512, (x, y, z) => {
+  const warpX = fbm(x * 2.4 + 3, y * 2.4, z * 2.4, 3) * 0.9;
+  const warpZ = fbm(x * 2.4, y * 2.4 + 7, z * 2.4, 3) * 0.9;
+  const bands = fbm((x + warpX) * 3.4, y * 5.2, (z + warpZ) * 3.4, 4);
+  const wisps = fbm(x * 14 + warpX * 2, y * 14, z * 14 + warpZ * 2, 3);
+  const density = bands * 0.72 + wisps * 0.35;
+  const a = Math.max(0, Math.min(255, (density - 0.51) * 680));
+  return [252, 254, 255, a];
+}, true, 32);
+
+const moonTex = createProgressiveSphereTex(256, 128, (x, y, z) => {
+  const v = 90 + 115 * fbm(x * 3, y * 3, z * 3, 4) * fbm(x * 9 + 3, y * 9, z * 9, 2);
+  return [v, v * 0.97, v * 0.92];
+}, false, 64);
+
+const glowTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, '#fff');
+  r.addColorStop(0.14, 'rgba(255,240,210,.9)');
+  r.addColorStop(0.42, 'rgba(255,190,110,.18)');
+  r.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = r;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+
+/* ==========================================================================
+   5. DYNAMIC ROCKET MESH GENERATOR
+   ========================================================================== */
+const mat = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
+const mWhite = mat(0xf0f3f8, 0.3, 0.35);
+const mDark = mat(0x161a22, 0.45, 0.75);
+const mOrange = mat(0xff6826, 0.45, 0.25);
+const mSteel = mat(0x8e99aa, 0.35, 0.8);
+const mGold = mat(0xd4a438, 0.35, 0.85);
+
+function addCyl(rTop, rBot, h, material, y, parent, seg = 36) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, seg), material);
+  m.position.y = y;
+  m.castShadow = m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+
+function buildRocketMesh(legs) {
+  const root = new THREE.Group();
+  const s1 = new THREE.Group(), s2 = new THREE.Group(), fairing = new THREE.Group(), boosters = new THREE.Group();
+  root.add(s1, s2, fairing, boosters);
+
+  const pl = getPart('payload');
+  const p2 = getPart('s2');
+  const t1 = getPart('s1tank');
+  const e1 = getPart('s1eng');
+  const bst = getPart('boosters');
+  const fin = getPart('fins');
+
+  // --- Stage 1 Core ---
+  const r1 = t1.r, h1 = t1.h;
+  addCyl(r1, r1, h1, mWhite, h1 / 2, s1);
+  addCyl(r1 + 0.02, r1 + 0.02, 2.4, mDark, h1 - 3.2, s1);
+  addCyl(r1 + 0.02, r1 + 0.02, 1.8, mOrange, 4.5, s1);
+  addCyl(r1 * 1.03, r1 * 1.03, 2.2, mDark, h1 + 1.1, s1);
+
+  // Engine nozzles on Stage 1
+  for (let i = 0; i < e1.count; i++) {
+    const ring = e1.count > 5 && i >= e1.count - 3;
+    const idx = ring ? i - (e1.count - 3) : i;
+    const tot = ring ? 3 : Math.max(1, e1.count - (e1.count > 5 ? 3 : 0));
+    const a = (idx / tot) * TAU;
+    const rad = e1.count === 1 ? 0 : (ring ? r1 * 0.28 : r1 * 0.62);
+    const noz = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.56, 1.7, 16, 1, true), mDark);
+    noz.material.side = THREE.DoubleSide;
+    noz.position.set(Math.cos(a) * rad, -0.8, Math.sin(a) * rad);
+    s1.add(noz);
+  }
+
+  // Stabilizers & Fins
+  if (fin.style === 'grid' || fin.style === 'double_grid') {
+    const cnt = fin.style === 'double_grid' ? 8 : 4;
+    for (let i = 0; i < cnt; i++) {
+      const a = (i / cnt) * TAU + 0.78;
+      const gfin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.16, 1.15), mSteel);
+      gfin.position.set(Math.cos(a) * (r1 + 0.8), h1 - 1.5, Math.sin(a) * (r1 + 0.8));
+      gfin.rotation.y = -a;
+      gfin.castShadow = true;
+      s1.add(gfin);
+    }
+  } else if (fin.style === 'delta' || fin.style === 'hex_delta' || fin.style === 'canard') {
+    const cnt = fin.style === 'hex_delta' ? 6 : 4;
+    const span = fin.style === 'hex_delta' ? 2.9 : 2.5;
+    for (let i = 0; i < cnt; i++) {
+      const a = (i / cnt) * TAU + 0.78;
+      const dfin = new THREE.Mesh(new THREE.BoxGeometry(span, 5.2, 0.18), mDark);
+      dfin.position.set(Math.cos(a) * (r1 + span * 0.42), 3.6, Math.sin(a) * (r1 + span * 0.42));
+      dfin.rotation.y = -a;
+      dfin.castShadow = true;
+      s1.add(dfin);
+    }
+    if (fin.style === 'canard') {
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * TAU;
+        const can = new THREE.Mesh(new THREE.BoxGeometry(1.45, 1.8, 0.14), mOrange);
+        can.position.set(Math.cos(a) * (r1 + 0.65), h1 - 1.2, Math.sin(a) * (r1 + 0.65));
+        can.rotation.y = -a;
+        s1.add(can);
+      }
+    }
+  }
+
+  // Landing legs in hangar
+  if (legs) {
+    for (let i = 0; i < 4; i++) {
+      const a = i * TAU / 4 + 0.78;
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.38, 8.5, 0.38), mDark);
+      leg.position.set(Math.cos(a) * (r1 + 1.35), 1.6, Math.sin(a) * (r1 + 1.35));
+      leg.rotation.set(Math.sin(a) * 0.48, 0, -Math.cos(a) * 0.48);
+      leg.castShadow = true;
+      s1.add(leg);
+    }
+  }
+
+  // --- Side Boosters ---
+  if (bst.count > 0) {
+    const br = 0.92, bh = h1 * 0.76;
+    for (let i = 0; i < bst.count; i++) {
+      const a = (i / bst.count) * TAU;
+      const bx = Math.cos(a) * (r1 + br + 0.12);
+      const bz = Math.sin(a) * (r1 + br + 0.12);
+      const bGrp = new THREE.Group();
+      bGrp.position.set(bx, 0, bz);
+      addCyl(br, br, bh, bst.id === 'b_2liq' ? mWhite : mSteel, bh / 2 + 0.5, bGrp, 24);
+      addCyl(0.1, br, 2.8, mOrange, bh + 1.9, bGrp, 24);
+      const bNoz = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.65, 1.5, 16, 1, true), mDark);
+      bNoz.position.y = -0.2;
+      bGrp.add(bNoz);
+      boosters.add(bGrp);
+    }
+  }
+
+  // --- Stage 2 ---
+  const y2 = h1 + 2.2;
+  addCyl(p2.r, r1, 1.5, mDark, y2 + 0.75, s2);
+  addCyl(p2.r, p2.r, p2.h, mWhite, y2 + 1.5 + p2.h / 2, s2);
+  addCyl(p2.r + 0.02, p2.r + 0.02, 0.9, mOrange, y2 + 1.5 + p2.h - 1.5, s2);
+  const s2Noz = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 1.15, 2.2, 20, 1, true), mDark);
+  s2Noz.material.side = THREE.DoubleSide;
+  s2Noz.position.y = y2 + 0.3;
+  s2.add(s2Noz);
+
+  // --- Payload & Fairing ---
+  const y3 = y2 + 1.5 + p2.h;
+  const sat = new THREE.Group();
+  sat.position.y = y3;
+  addCyl(0.95, 1.1, 3.2, mGold, 1.8, sat, 24);
+  const panelL = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.08, 1.4), mat(0x1b4d89, 0.25, 0.7));
+  panelL.position.set(0, 2.2, 0);
+  sat.add(panelL);
+  s2.add(sat);
+
+  fairing.position.y = y3;
+  if (pl.style === 'bulb') {
+    addCyl(pl.r, p2.r, 2.2, mWhite, 1.1, fairing);
+    addCyl(pl.r, pl.r, pl.h - 5.5, mWhite, 2.2 + (pl.h - 5.5) / 2, fairing);
+    addCyl(0.18, pl.r, 3.8, mWhite, pl.h - 1.4, fairing);
+  } else if (pl.style === 'crew') {
+    addCyl(pl.r * 0.65, p2.r, 3.4, mWhite, 1.7, fairing);
+    addCyl(0.12, 0.22, 4.2, mOrange, 5.4, fairing);
+  } else {
+    addCyl(0.18, p2.r, pl.h, mWhite, pl.h / 2, fairing);
+  }
+
+  const totalH = y3 + pl.h;
+  root.userData = { s1, s2, fairing, boosters, y2, y3, totalH, r1 };
+  return root;
+}
+
+/* ==========================================================================
+   6. HANGAR SCENE (VAB) - CLEAN POLYGONS & NO PIXEL ARTIFACTS
+   ========================================================================== */
+const H = new THREE.Scene();
+H.background = new THREE.Color(0x060911);
+H.fog = new THREE.FogExp2(0x060911, 0.0028);
+
+let hangarRocket;
+(function initHangar() {
+  const floorC = document.createElement('canvas');
+  floorC.width = floorC.height = 512;
+  const g = floorC.getContext('2d');
+  g.fillStyle = '#181e28';
+  g.fillRect(0, 0, 512, 512);
+  g.strokeStyle = '#2a3545';
+  g.lineWidth = 2;
+  for (let i = 0; i <= 512; i += 64) {
+    g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 512); g.moveTo(0, i); g.lineTo(512, i); g.stroke();
+  }
+  g.strokeStyle = '#d49b00';
+  g.lineWidth = 8;
+  g.strokeRect(140, 140, 232, 232);
+  const ft = new THREE.CanvasTexture(floorC);
+  ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
+  ft.repeat.set(6, 8);
+  ft.anisotropy = 4;
+  ft.encoding = THREE.sRGBEncoding;
+
+  const flMat = new THREE.MeshStandardMaterial({
+    map: ft,
+    roughness: 0.45,
+    metalness: 0.4,
+    polygonOffset: true,
+    polygonOffsetFactor: 2,
+    polygonOffsetUnits: 2
+  });
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(130, 160), flMat);
+  fl.rotation.x = -Math.PI / 2;
+  fl.position.y = -0.05;
+  fl.receiveShadow = true;
+  H.add(fl);
+
+  const sh = new THREE.Mesh(
+    new THREE.BoxGeometry(130, 95, 160),
+    new THREE.MeshStandardMaterial({ color: 0x1e2531, roughness: 0.85, metalness: 0.2, side: THREE.BackSide })
+  );
+  sh.position.y = 47.4;
+  H.add(sh);
+
+  const lm = new THREE.MeshBasicMaterial({ color: 0xd4e8ff });
+  for (let i = -3; i <= 3; i++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(128, 0.7, 1.3), mDark);
+    b.position.set(0, 90, i * 21);
+    H.add(b);
+    const l = new THREE.Mesh(new THREE.BoxGeometry(104, 0.22, 0.55), lm);
+    l.position.set(0, 89.5, i * 21);
+    H.add(l);
+  }
+
+  H.add(new THREE.HemisphereLight(0xb2ccff, 0x19202c, 0.65));
+  spot = new THREE.SpotLight(0xe6f0ff, 2.8, 280, 0.55, 0.65, 1);
+  spot.position.set(28, 86, 28);
+  spot.target.position.set(0, 28, 0);
+  spot.castShadow = true;
+  spot.shadow.bias = -0.0015;
+  spot.shadow.normalBias = 0.04;
+  H.add(spot, spot.target);
+
+  const s2 = new THREE.SpotLight(0xffad66, 1.7, 220, 0.75, 0.75, 1);
+  s2.position.set(-42, 62, -32);
+  s2.target.position.set(0, 22, 0);
+  H.add(s2, s2.target);
+
+  // Launch table platform (clean separation from floor)
+  const base = new THREE.Mesh(new THREE.BoxGeometry(24, 2.2, 24), mat(0x36404e, 0.55, 0.5));
+  base.position.y = 1.1;
+  base.castShadow = base.receiveShadow = true;
+  H.add(base);
+
+  // Service tower
+  const tw = new THREE.Group();
+  for (const x of [-1, 1]) {
+    for (const z of [-1, 1]) {
+      const l = new THREE.Mesh(new THREE.BoxGeometry(1.1, 68, 1.1), mat(0xc85220, 0.6, 0.4));
+      l.position.set(x * 3.1, 34, z * 3.1);
+      l.castShadow = true;
+      tw.add(l);
+    }
+  }
+  for (let y = 8; y < 68; y += 9) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.45, 7.2), mat(0x8894a6, 0.6, 0.5));
+    p.position.y = y;
+    p.receiveShadow = true;
+    tw.add(p);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.35, 0.35), mDark);
+    arm.position.set(-7.6, y + 0.4, 0);
+    tw.add(arm);
+  }
+  tw.position.set(-14.5, 0, 0);
+  H.add(tw);
+})();
+
+function rebuildAllRockets() {
+  if (hangarRocket) H.remove(hangarRocket);
+  hangarRocket = buildRocketMesh(true);
+  hangarRocket.position.y = 2.2;
+  H.add(hangarRocket);
+
+  if (typeof SC !== 'undefined' && rS) {
+    SC.remove(rS);
+    rS = buildRocketMesh(false);
+    SC.add(rS);
+    rS.add(plume, core, plL, machCone);
+  }
+}
+
+/* ==========================================================================
+   7. SPACE & EARTH SCENE (REALISTIC ATMOSPHERE, CLOUDS, PARTICLES, EXPLOSION)
+   ========================================================================== */
+const SC = new THREE.Scene();
+SC.background = new THREE.Color(0x000004);
+const sunDir = new V3(1, 0.32, 0.52).normalize();
+const moonDir = new V3(-0.7, 0.25, 0.6).normalize();
+
+// Realistic Earth Shader with Normal Relief, Specular Ocean Glint & City Lights
+const earthMat = new THREE.ShaderMaterial({
+  uniforms: { t: { value: earthTex }, sun: { value: sunDir } },
+  vertexShader: `
+    varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
+    void main() {
+      vUv = uv;
+      vN = normalize(mat3(modelMatrix) * normal);
+      vW = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      #include <logdepthbuf_vertex>
+    }`,
+  fragmentShader: `
+    uniform sampler2D t; uniform vec3 sun;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5); }
+    void main() {
+      #include <logdepthbuf_fragment>
+      vec3 c = texture2D(t, vUv).rgb;
+      vec3 cLin = pow(c, vec3(2.2));
+      vec3 N = normalize(vN);
+      vec3 V = normalize(cameraPosition - vW);
+      float ndl = dot(N, sun);
+      float lit = smoothstep(-0.08, 0.22, ndl);
+      float twilight = smoothstep(-0.16, 0.04, ndl) * (1.0 - smoothstep(0.02, 0.22, ndl));
+
+      // Detect water vs land for ocean specular sunglint
+      float isWater = step(c.g * 0.9, c.b) * step(c.r, 0.26);
+      vec3 H = normalize(sun + V);
+      float spec = pow(max(dot(N, H), 0.0), 42.0) * isWater * lit * 0.85;
+
+      vec3 col = cLin * (0.015 + lit * 1.32) + vec3(1.0, 0.42, 0.16) * twilight * 0.09 + vec3(1.0, 0.95, 0.85) * spec;
+      float isLand = 1.0 - isWater;
+      float city = step(0.968, h(floor(vUv * vec2(1100.0, 550.0)))) * isLand * (1.0 - lit);
+      col += vec3(1.0, 0.72, 0.34) * city * 1.5;
+
+      gl_FragColor = vec4(col, 1.0);
+      #include <tonemapping_fragment>
+      #include <encodings_fragment>
+    }`
+});
+const earth = new THREE.Mesh(new THREE.SphereGeometry(R, 128, 64), earthMat);
+SC.add(earth);
+
+// Volumetric Cloud Layer
+clouds = new THREE.Mesh(
+  new THREE.SphereGeometry(R * 1.0022, 96, 48),
+  new THREE.MeshStandardMaterial({
+    map: cloudTex,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    roughness: 1.0
+  })
+);
+SC.add(clouds);
+
+// Rayleigh Scattering Atmosphere Shell
+const atm = new THREE.Mesh(
+  new THREE.SphereGeometry(R * 1.026, 96, 48),
+  new THREE.ShaderMaterial({
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { sun: { value: sunDir } },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vW;
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      void main() {
+        vN = normalize(mat3(modelMatrix) * normal);
+        vW = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader: `
+      uniform vec3 sun;
+      varying vec3 vN; varying vec3 vW;
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      void main() {
+        #include <logdepthbuf_fragment>
+        vec3 v = normalize(cameraPosition - vW);
+        float f = pow(clamp(0.62 - dot(normalize(vN), v), 0.0, 1.0), 2.5);
+        float s = smoothstep(-0.28, 0.38, dot(normalize(-vN), sun));
+        vec3 skyCol = mix(vec3(0.95, 0.42, 0.16), vec3(0.26, 0.58, 1.0), smoothstep(-0.1, 0.35, dot(normalize(-vN), sun)));
+        gl_FragColor = vec4(skyCol * f * s * 2.1, f * s);
+      }`
+  })
+);
+SC.add(atm);
+
+// Starfield & Moon
+const starG = new THREE.BufferGeometry(), sp = [];
+for (let i = 0; i < 5000; i++) {
+  const u = Math.random() * 2 - 1, a = Math.random() * TAU, k = Math.sqrt(1 - u * u) * 3e7;
+  sp.push(k * Math.cos(a), u * 3e7, k * Math.sin(a));
+}
+starG.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+const stars = new THREE.Points(starG, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, color: 0xd4deff, depthWrite: false, fog: false }));
+stars.renderOrder = -1;
+SC.add(stars);
+
+const moon = new THREE.Mesh(new THREE.SphereGeometry(8.1e4, 48, 24), new THREE.MeshStandardMaterial({ map: moonTex, roughness: 1 }));
+SC.add(moon);
+
+const sunL = new THREE.DirectionalLight(0xfff4e0, 3.2);
+sunL.position.copy(sunDir);
+SC.add(sunL, new THREE.AmbientLight(0x1a2233, 0.35));
+
+const sunS = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+sunS.scale.setScalar(5e6);
+sunS.position.copy(sunDir).multiplyScalar(2.5e7);
+SC.add(sunS);
+
+// Launch Pad (Clean PolygonOffset - Zero Z-fighting)
+const pad = new THREE.Group();
+const pd = new THREE.Mesh(
+  new THREE.CylinderGeometry(85, 92, 1.4, 48),
+  new THREE.MeshStandardMaterial({
+    color: 0x4b5360,
+    roughness: 0.85,
+    metalness: 0.2,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2
+  })
+);
+pd.position.y = -0.35;
+pd.receiveShadow = true;
+pad.add(pd);
+
+const ptw = new THREE.Mesh(new THREE.BoxGeometry(5.5, 76, 5.5), mat(0xc85220, 0.6, 0.4));
+ptw.position.set(-14.5, 38, 0);
+pad.add(ptw);
+SC.add(pad);
+
+// Rocket in Space + Plume + Max-Q Vapor Cone
+let rS = buildRocketMesh(false);
+SC.add(rS);
+const plume = new THREE.Mesh(
+  new THREE.ConeGeometry(1.75, 1, 20, 1, true),
+  new THREE.MeshBasicMaterial({ color: 0xff9b3d, transparent: true, opacity: 0.78, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+);
+plume.rotation.x = Math.PI;
+const core = new THREE.Mesh(
+  new THREE.ConeGeometry(0.82, 1, 16, 1, true),
+  new THREE.MeshBasicMaterial({ color: 0xfff5d6, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+);
+core.rotation.x = Math.PI;
+const plL = new THREE.PointLight(0xff9a50, 0, 420);
+
+const machCone = new THREE.Mesh(
+  new THREE.ConeGeometry(6.8, 9.5, 28, 1, true),
+  new THREE.MeshBasicMaterial({ color: 0xeef6ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
+);
+machCone.visible = false;
+rS.add(plume, core, plL, machCone);
+
+const orbitLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x54e89a, transparent: true, opacity: 0.82 }));
+orbitLine.frustumCulled = false;
+SC.add(orbitLine);
+
+// Clean Particle System (Vertex Colors + Hidden Inactive Particles = No White Ball Bug!)
+const MAX_P = 280;
+const pPos = new Float32Array(MAX_P * 3);
+const pCol = new Float32Array(MAX_P * 3);
+for (let i = 0; i < MAX_P; i++) pPos[i * 3 + 1] = -9e8;
+const pVel = Array.from({ length: MAX_P }, () => ({ vx: 0, vy: 0, vz: 0, life: 0, max: 1, kind: 0 }));
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+const pMat = new THREE.PointsMaterial({
+  size: 14,
+  map: glowTex,
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
+});
+const particles = new THREE.Points(pGeo, pMat);
+particles.frustumCulled = false;
+SC.add(particles);
+let pCursor = 0;
+
+function spawnParticle(x, y, z, vx, vy, vz, life = 1.4, kind = 0) {
+  const p = pVel[pCursor];
+  pPos[pCursor * 3] = x;
+  pPos[pCursor * 3 + 1] = y;
+  pPos[pCursor * 3 + 2] = z;
+  p.vx = vx; p.vy = vy; p.vz = vz;
+  p.life = life; p.max = life; p.kind = kind;
+  pCursor = (pCursor + 1) % MAX_P;
+}
+
+// Explosion Fireball & Shockwave
+const expGrp = new THREE.Group();
+const expFire = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 24, 18),
+  new THREE.MeshBasicMaterial({ color: 0xff7b24, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+);
+const expCore = new THREE.Mesh(
+  new THREE.SphereGeometry(0.65, 20, 14),
+  new THREE.MeshBasicMaterial({ color: 0xfff6d6, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+);
+const expWave = new THREE.Mesh(
+  new THREE.RingGeometry(0.85, 1.15, 36),
+  new THREE.MeshBasicMaterial({ color: 0xffcfa0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+);
+expGrp.add(expFire, expCore, expWave);
+expGrp.visible = false;
+SC.add(expGrp);
+
+let expState = { active: false, t: 0, x: 0, y: 0, shake: 0 };
+let debrisList = [];
+
+function triggerExplosion(reasonKey) {
+  if (S.ph === 'crash') return;
+  S.ph = 'crash';
+  S.thr = 0;
+  rS.visible = false;
+  expState = { active: true, t: 0, x: S.x, y: S.y, shake: 1.0 };
+  expGrp.visible = true;
+  expGrp.position.set(0, 0, 0);
+  playExplosionSound();
+  log(t('log_crash'));
+  say(t(reasonKey || 'say_crash'), 4500);
+
+  for (let i = 0; i < 160; i++) {
+    const a = Math.random() * TAU;
+    const b = (Math.random() - 0.5) * Math.PI;
+    const spd = 25 + Math.random() * 140;
+    spawnParticle(
+      (Math.random() - 0.5) * 6,
+      10 + Math.random() * 25,
+      (Math.random() - 0.5) * 6,
+      S.vx * 0.25 + Math.cos(a) * Math.cos(b) * spd,
+      S.vy * 0.25 + Math.abs(Math.sin(b)) * spd + 15,
+      Math.sin(a) * Math.cos(b) * spd,
+      1.6 + Math.random() * 2.2,
+      1
+    );
+  }
+  for (let i = 0; i < 8; i++) {
+    const chunk = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5 + Math.random() * 2.5, 2 + Math.random() * 5, 1.5 + Math.random() * 2.5),
+      i % 2 ? mWhite : mDark
+    );
+    SC.add(chunk);
+    const a = Math.random() * TAU;
+    const spd = 20 + Math.random() * 75;
+    debrisList.push({
+      mesh: chunk,
+      x: S.x,
+      y: S.y + 15,
+      vx: S.vx * 0.4 + Math.cos(a) * spd,
+      vy: S.vy * 0.4 + Math.abs(Math.sin(a)) * spd + 20,
+      rz: Math.random() * TAU,
+      spin: (Math.random() - 0.5) * 8,
+      t: 0
+    });
+  }
+}
+
+/* ==========================================================================
+   8. 6-DOF / 3-DOF FLIGHT PHYSICS, PID SAS & FLIGHT DIRECTOR
+   ========================================================================== */
+const S = {
+  ph: 'pad',
+  cd: false,
+  t: -10,
+  x: 0,
+  y: R,
+  vx: 0,
+  vy: 0,
+  stg: 0,
+  p: [380e3, 82e3],
+  bp: 0,
+  boostSep: false,
+  fairSep: false,
+  thr: 0,
+  pitch: 0,
+  targetPitch: 0,
+  omega: 0,
+  aoa: 0,
+  sas: true,
+  auto: true,
+  dirMode: 'man',
+  warp: 1,
+  q: 0,
+  g: 0,
+  extTemp: 18,
+  intTemp: 21,
+  met: 0
+};
+
+function currentMass() {
+  const pl = getPart('payload'), p2 = getPart('s2'), t1 = getPart('s1tank'), e1 = getPart('s1eng'), bst = getPart('boosters'), fin = getPart('fins');
+  let m = (S.fairSep ? pl.mass * 0.65 : pl.mass) + p2.dry + S.p[1] + fin.mass * 0.3;
+  if (S.stg === 0) m += t1.dry + e1.dry + S.p[0] + fin.mass * 0.7;
+  if (!S.boostSep && bst.count > 0) m += bst.dry + S.bp;
+  return m;
+}
+
+function computeFlightStats() {
+  const pl = getPart('payload'), p2 = getPart('s2'), t1 = getPart('s1tank'), e1 = getPart('s1eng'), bst = getPart('boosters'), fin = getPart('fins');
+  const m0 = pl.mass + p2.dry + p2.fuel + t1.dry + t1.fuel + e1.dry + bst.dry + bst.fuel + fin.mass;
+  const f0 = e1.F + (bst.count > 0 ? bst.F : 0);
+  const twr = f0 / (m0 * G0);
+
+  const m1End = m0 - t1.fuel - bst.fuel;
+  const dv1 = ((e1.i0 + e1.i1) * 0.5) * G0 * Math.log(m0 / Math.max(1, m1End));
+  const m2Start = pl.mass + p2.dry + p2.fuel + fin.mass * 0.3;
+  const m2End = pl.mass + p2.dry + fin.mass * 0.3;
+  const dv2 = p2.i1 * G0 * Math.log(m2Start / Math.max(1, m2End));
+  const stabScore = fin.stab * (bst.count > 0 ? 1.15 : 1.0);
+  return { m0, twr, dv: dv1 + dv2, stabScore };
+}
+
+function orb() {
+  const r = Math.hypot(S.x, S.y);
+  const v2 = S.vx * S.vx + S.vy * S.vy;
+  const en = v2 / 2 - MU / r;
+  const h = S.x * S.vy - S.y * S.vx;
+  if (en >= 0) return null;
+  const a = -MU / (2 * en);
+  const e = Math.sqrt(Math.max(0, 1 + (2 * en * h * h) / (MU * MU)));
+  const d = S.x * S.vx + S.y * S.vy;
+  return {
+    a, e,
+    apo: a * (1 + e) - R,
+    per: a * (1 - e) - R,
+    ex: ((v2 - MU / r) * S.x - d * S.vx) / MU,
+    ey: ((v2 - MU / r) * S.y - d * S.vy) / MU
+  };
+}
+
+function setDirMode(modeName) {
+  S.dirMode = modeName;
+  if (modeName !== 'man' && S.auto) {
+    S.auto = false;
+    $('#b_au').classList.remove('on');
+  }
+  document.querySelectorAll('.dir-pad button[data-dir]').forEach(b => {
+    b.classList.toggle('on', b.dataset.dir === modeName);
+  });
+}
+
+function computeDirectionTarget() {
+  const r = Math.hypot(S.x, S.y);
+  const ux = S.x / r, uy = S.y / r;
+  const ex = uy, ey = -ux;
+  const sp = Math.hypot(S.vx, S.vy);
+  const proAngle = sp > 12 ? Math.atan2(S.vx * ex + S.vy * ey, S.vx * ux + S.vy * uy) * 180 / Math.PI : 0;
+
+  if (S.dirMode === 'up') return 0;
+  if (S.dirMode === 'hor') return 90;
+  if (S.dirMode === 'pro') return proAngle;
+  if (S.dirMode === 'ret') return (proAngle + 180) % 360;
+  if (S.dirMode === 'radp') return Math.max(-90, proAngle - 35);
+  if (S.dirMode === 'radm') return Math.min(180, proAngle + 35);
+  return S.targetPitch;
+}
+
+function stepPhysics(h) {
+  const r = Math.hypot(S.x, S.y);
+  const ux = S.x / r, uy = S.y / r;
+  const ex = uy, ey = -ux;
+  const alt = r - R;
+  const m = currentMass();
+
+  const pl = getPart('payload'), p2 = getPart('s2'), e1 = getPart('s1eng'), bst = getPart('boosters'), fin = getPart('fins');
+  const sp = Math.hypot(S.vx, S.vy);
+  const rho = 1.225 * Math.exp(-Math.max(0, alt) / 8500);
+  S.q = 0.5 * rho * sp * sp;
+
+  // Guidance & Flight Director
+  if (S.ph === 'ascent') {
+    if (S.auto) {
+      const vr = S.vx * ux + S.vy * uy;
+      if (alt < 900) S.targetPitch = 0;
+      else if (S.stg === 0 || alt < 72e3) S.targetPitch = Math.min(85, 89 * Math.sqrt((alt - 900) / 235e3));
+      else {
+        const err = Math.max(-8, Math.min(24, (195e3 - alt) * 3.2e-4 - vr * 0.022));
+        S.targetPitch = 90 - err;
+      }
+      const o = orb();
+      if (S.stg === 1 && o && o.per > 185e3) S.thr = 0;
+    } else if (S.dirMode !== 'man') {
+      S.targetPitch = computeDirectionTarget();
+    }
+  } else if (S.ph === 'orbit' && S.dirMode !== 'man') {
+    S.targetPitch = computeDirectionTarget();
+  }
+
+  // Attitude Dynamics (PID SAS + Aerodynamic Torque)
+  const thRad = S.pitch * Math.PI / 180;
+  const dx = ux * Math.cos(thRad) + ex * Math.sin(thRad);
+  const dy = uy * Math.cos(thRad) - ux * Math.sin(thRad);
+
+  if (sp > 8) {
+    const vxN = S.vx / sp, vyN = S.vy / sp;
+    const cross = dx * vyN - dy * vxN;
+    const dot = Math.max(-1, Math.min(1, dx * vxN + dy * vyN));
+    S.aoa = Math.atan2(cross, dot) * 180 / Math.PI;
+  } else {
+    S.aoa = 0;
+  }
+
+  let torque = 0;
+  const ctrlAuthority = (S.thr > 0 ? e1.gimbal * 24 : 0) + fin.rcs * 12 + (rho > 0.01 ? fin.stab * 16 : 0);
+  if (S.sas) {
+    let err = S.targetPitch - S.pitch;
+    while (err > 180) err -= 360;
+    while (err < -180) err += 360;
+    torque += err * 4.5 - S.omega * 3.4;
+  } else {
+    const manualIn = hold + (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+    torque += manualIn * ctrlAuthority * 0.85 - S.omega * 0.35;
+  }
+
+  // Aerodynamic destabilizing / restoring torque
+  if (S.q > 100) {
+    const stabMargin = (fin.stab - 0.85) * 0.00018;
+    torque -= S.aoa * S.q * stabMargin;
+    if (!S.sas && S.q > 18000) {
+      torque += Math.sin(S.met * 9.0) * (S.q / 9000);
+    }
+  }
+
+  S.omega += Math.max(-ctrlAuthority * 2, Math.min(ctrlAuthority * 2, torque)) * h;
+  S.pitch = (S.pitch + S.omega * h + 360) % 360;
+
+  // Forces: Gravity + Drag + Thrust
+  let ax = -MU * S.x / (r * r * r);
+  let ay = -MU * S.y / (r * r * r);
+
+  const cdArea = (pl.drag + (S.boostSep ? 0 : bst.drag) + Math.abs(Math.sin(S.aoa * Math.PI / 180)) * 3.5) * 10.5;
+  if (sp > 0 && rho > 1e-9) {
+    const D = (S.q * cdArea) / m;
+    ax -= D * (S.vx / sp);
+    ay -= D * (S.vy / sp);
+  }
+
+  let F = 0;
+  if (S.thr > 0 && (S.ph === 'ascent' || S.ph === 'orbit')) {
+    const atmoFrac = 1 - Math.exp(-Math.max(0, alt) / 14000);
+    if (S.stg === 0 && S.p[0] > 0) {
+      const isp = e1.i0 + (e1.i1 - e1.i0) * atmoFrac;
+      const fCore = e1.F * S.thr * (0.91 + 0.09 * atmoFrac);
+      S.p[0] = Math.max(0, S.p[0] - (fCore / (isp * G0)) * h);
+      F += fCore;
+    } else if (S.stg === 1 && S.p[1] > 0) {
+      const isp = p2.i0 + (p2.i1 - p2.i0) * atmoFrac;
+      const fUp = p2.F * S.thr;
+      S.p[1] = Math.max(0, S.p[1] - (fUp / (isp * G0)) * h);
+      F += fUp;
+    }
+    if (!S.boostSep && bst.count > 0 && S.bp > 0) {
+      const fBst = bst.F * (0.93 + 0.07 * atmoFrac);
+      S.bp = Math.max(0, S.bp - (fBst / (bst.isp * G0)) * h);
+      F += fBst;
+    }
+    if (F > 0) {
+      ax += (F / m) * dx;
+      ay += (F / m) * dy;
+    }
+  }
+  S.F = F;
+  S.g = Math.hypot(ax + (MU * S.x) / (r * r * r), ay + (MU * S.y) / (r * r * r)) / G0;
+
+  // Structural Overload Breakup Check
+  if ((S.ph === 'ascent' || S.ph === 'orbit') && S.met > 2) {
+    if (S.g > 9.5 || (S.q > 32000 && Math.abs(S.aoa) > 22)) {
+      triggerExplosion('say_overg');
+      return;
+    }
+    if (S.extTemp > 1450) {
+      triggerExplosion('say_overheat');
+      return;
+    }
+  }
+
+  // External & Internal Temperature Thermodynamics
+  let ambTemp = 18;
+  if (alt < 11000) ambTemp = 18 - (alt / 11000) * 74;             // Troposphere down to -56°C
+  else if (alt < 47000) ambTemp = -56 + ((alt - 11000) / 36000) * 54; // Stratosphere up to -2°C
+  else if (alt < 85000) ambTemp = -2 - ((alt - 47000) / 38000) * 84;  // Mesosphere down to -86°C
+  else {
+    // Space radiative equilibrium (Sunlit vs Earth shadow)
+    const sunDot = ux * sunDir.x + uy * sunDir.y;
+    ambTemp = sunDot > -0.25 ? 115 : -155;
+  }
+  const aeroHeat = (S.q * sp) * 0.000014; // Aerodynamic stagnation heating
+  const targetExt = ambTemp + aeroHeat;
+  const thermalRate = alt < 85000 ? 0.35 : 0.08;
+  S.extTemp += (targetExt - S.extTemp) * Math.min(1, thermalRate * h);
+
+  // Active Life-Support / Avionics Thermal Control System (target +21°C)
+  const hullLeak = (S.extTemp - S.intTemp) * 0.004;
+  const heaterCooler = (21.5 - S.intTemp) * 0.12;
+  S.intTemp += (hullLeak + heaterCooler) * Math.min(1, h);
+
+  S.vx += ax * h;
+  S.vy += ay * h;
+  S.x += S.vx * h;
+  S.y += S.vy * h;
+
+  // Ground Impact Check
+  const r2 = Math.hypot(S.x, S.y);
+  if (r2 < R) {
+    const vr = (S.vx * S.x + S.vy * S.y) / r2;
+    if (vr < -22 && S.met > 2) {
+      triggerExplosion('say_crash');
+      return;
+    }
+    S.x *= R / r2;
+    S.y *= R / r2;
+    if (vr < 0) {
+      S.vx -= vr * (S.x / R);
+      S.vy -= vr * (S.y / R);
+    }
+  }
+
+  // Staging & Jettison Events
+  if (!S.boostSep && bst.count > 0 && S.bp <= 0 && S.ph === 'ascent') jettisonBoosters();
+  if (!S.fairSep && alt > 72000 && S.ph === 'ascent') jettisonFairing();
+  if (S.stg === 0 && S.p[0] <= 0 && S.ph === 'ascent') doStage();
+  if (S.p[1] <= 0 && S.stg === 1 && S.ph === 'ascent') S.thr = 0;
+}
+
+function jettisonBoosters() {
+  if (S.boostSep) return;
+  S.boostSep = true;
+  log(t('log_boost_sep'));
+  const mesh = rS.userData.boosters;
+  if (mesh && mesh.parent === rS) {
+    rS.remove(mesh);
+    SC.add(mesh);
+    debrisList.push({ mesh, x: S.x, y: S.y, vx: S.vx - 8, vy: S.vy - 12, rz: rS.rotation.z, spin: 0.25, t: 0 });
+  }
+}
+
+function jettisonFairing() {
+  if (S.fairSep) return;
+  S.fairSep = true;
+  log(t('log_fairing'));
+  const mesh = rS.userData.fairing;
+  if (mesh && mesh.parent === rS) {
+    rS.remove(mesh);
+    SC.add(mesh);
+    debrisList.push({ mesh, x: S.x, y: S.y, vx: S.vx + 10, vy: S.vy + 6, rz: rS.rotation.z, spin: -0.35, t: 0 });
+  }
+}
+
+function doStage() {
+  if (S.stg === 1) return;
+  if (!S.boostSep && getPart('boosters').count > 0) jettisonBoosters();
+  S.stg = 1;
+  log(t('log_stage'));
+  const mesh = rS.userData.s1;
+  if (mesh && mesh.parent === rS) {
+    rS.remove(mesh);
+    SC.add(mesh);
+    debrisList.push({ mesh, x: S.x, y: S.y, vx: S.vx - 4, vy: S.vy - 10, rz: rS.rotation.z, spin: 0.14, t: 0 });
+  }
+}
+
+/* ==========================================================================
+   9. INTERACTIVE TUTORIAL SYSTEM
+   ========================================================================== */
+let tutStep = 0;
+let tutMaxReached = 0;
+let tutOpen = true;
+
+function renderTutorial() {
+  const steps = t('tut_steps');
+  const st = steps[tutStep];
+  $('#tut-step-badge').textContent = `${t('tut_step_lbl')} ${tutStep + 1} / ${steps.length}`;
+  $('#tut-title').textContent = st.title;
+  $('#tut-desc').textContent = st.desc;
+  $('#tut-prev').disabled = tutStep === 0;
+  $('#tut-prev').style.opacity = tutStep === 0 ? '0.45' : '1';
+  $('#tut-next').textContent = tutStep === steps.length - 1 ? t('tut_done') : t('tut_next');
+}
+
+function advanceTutTo(nextIdx) {
+  if (nextIdx > tutMaxReached) {
+    tutMaxReached = nextIdx;
+    tutStep = nextIdx;
+    renderTutorial();
+  }
+}
+
+function checkTutorialProgress() {
+  if (!tutOpen) return;
+  if (tutMaxReached === 0 && mode !== 'hangar') advanceTutTo(1);
+  if (tutMaxReached === 1 && (S.cd || S.ph === 'ascent')) advanceTutTo(2);
+  if (tutMaxReached === 2 && S.ph === 'ascent' && (Math.hypot(S.x, S.y) - R) > 1200) advanceTutTo(3);
+  if (tutMaxReached === 3 && S.stg === 1) advanceTutTo(4);
+  if (tutMaxReached === 4 && S.ph === 'orbit') advanceTutTo(5);
+}
+
+$('#b_tut').onclick = () => {
+  tutOpen = !tutOpen;
+  $('#tut').classList.toggle('hidden', !tutOpen);
+  $('#b_tut').classList.toggle('on', tutOpen);
+  document.body.classList.toggle('no-tut', !tutOpen);
+};
+$('#tut-close').onclick = () => {
+  tutOpen = false;
+  $('#tut').classList.add('hidden');
+  $('#b_tut').classList.remove('on');
+  document.body.classList.add('no-tut');
+};
+$('#tut-prev').onclick = () => {
+  if (tutStep > 0) {
+    tutStep--;
+    renderTutorial();
+  }
+};
+$('#tut-next').onclick = () => {
+  if (tutStep < t('tut_steps').length - 1) {
+    tutStep++;
+    tutMaxReached = Math.max(tutMaxReached, tutStep);
+    renderTutorial();
+  } else {
+    $('#tut-close').click();
+  }
+};
+
+/* ==========================================================================
+   10. UI, VAB BUILDER, NAVBALL & AUDIO SYNTHESIZER
+   ========================================================================== */
+const logEl = $('#log'), logs = [], hist = [];
+function log(txt) {
+  const m = S.ph === 'pad' ? 'T' + S.t.toFixed(0) : 'T+' + S.met.toFixed(0);
+  logs.unshift(`<p><b>${m}</b> · ${txt}</p>`);
+  if (logs.length > 7) logs.length = 7;
+  logEl.innerHTML = logs.join('');
+}
+
+let pollRes = [];
+function runPoll() {
+  const names = t('poll_names');
+  pollRes = names.map(() => Math.random() > 0.03);
+  $('#polls').innerHTML = names.map((n, i) => `<span class="${pollRes[i] ? 'g' : 'n'}">${n}: ${pollRes[i] ? 'GO' : 'NO-GO'}</span>`).join('');
+  return pollRes.every(Boolean);
+}
+
+function say(txt, ms = 2500) {
+  $('#msg').textContent = txt;
+  clearTimeout(say.t);
+  say.t = setTimeout(() => ($('#msg').textContent = ''), ms);
+}
+
+function buildVabUI() {
+  const container = $('#vab-slots');
+  container.innerHTML = '';
+  t('slots').forEach(slot => {
+    const part = getPart(slot.key);
+    const list = PARTS[slot.key];
+    const div = document.createElement('div');
+    div.className = 'part-slot';
+    div.innerHTML = `
+      <div class="part-head"><span>${slot.label}</span><span>${cfg[slot.key] + 1}/${list.length}</span></div>
+      <div class="part-ctrl">
+        <button data-k="${slot.key}" data-d="-1">◀</button>
+        <div class="part-name">${part[lang]}</div>
+        <button data-k="${slot.key}" data-d="1">▶</button>
+      </div>`;
+    container.appendChild(div);
+  });
+  container.querySelectorAll('button').forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.k, d = Number(b.dataset.d), len = PARTS[k].length;
+      cfg[k] = (cfg[k] + d + len) % len;
+      document.querySelectorAll('.presets button').forEach(p => p.classList.remove('on'));
+      rebuildAllRockets();
+      buildVabUI();
+      if (S.ph === 'pad') resetSim();
+    };
+  });
+  updateVabStats();
+}
+
+function updateVabStats() {
+  const st = computeFlightStats();
+  $('#v_mass').textContent = (st.m0 / 1000).toFixed(1) + ' t';
+  $('#v_twr').textContent = st.twr.toFixed(2);
+  $('#v_twr').style.color = st.twr >= 1.2 ? 'var(--ok)' : 'var(--bad)';
+  $('#v_dv').textContent = (st.dv / 1000).toFixed(2) + ' km/s';
+  $('#v_stab').textContent = st.stabScore >= 1.8 ? t('stab_high') : st.stabScore >= 1.1 ? t('stab_med') : t('stab_low');
+}
+
+function applyPreset(name) {
+  document.querySelectorAll('.presets button').forEach(p => p.classList.toggle('on', p.id === 'pr_' + name));
+  if (name === 'light') Object.assign(cfg, { payload: 0, s2: 2, s1tank: 0, s1eng: 3, boosters: 0, fins: 0 });
+  if (name === 'med') Object.assign(cfg, { payload: 1, s2: 0, s1tank: 0, s1eng: 0, boosters: 1, fins: 1 });
+  if (name === 'heavy') Object.assign(cfg, { payload: 3, s2: 1, s1tank: 2, s1eng: 1, boosters: 2, fins: 2 });
+  rebuildAllRockets();
+  buildVabUI();
+  resetSim();
+}
+$('#pr_light').onclick = () => applyPreset('light');
+$('#pr_med').onclick = () => applyPreset('med');
+$('#pr_heavy').onclick = () => applyPreset('heavy');
+
+function clearDebris() {
+  debrisList.forEach(d => SC.remove(d.mesh));
+  debrisList = [];
+}
+
+function resetSim() {
+  clearDebris();
+  rebuildAllRockets();
+  rS.visible = true;
+  expGrp.visible = false;
+  expState.active = false;
+  $('#g_vignette').style.opacity = '0';
+
+  const t1 = getPart('s1tank'), p2 = getPart('s2'), bst = getPart('boosters');
+  Object.assign(S, {
+    ph: 'pad',
+    cd: false,
+    t: -10,
+    x: 0,
+    y: R,
+    vx: 0,
+    vy: 0,
+    stg: 0,
+    p: [t1.fuel, p2.fuel],
+    bp: bst.fuel,
+    boostSep: false,
+    fairSep: false,
+    thr: 0,
+    pitch: 0,
+    targetPitch: 0,
+    omega: 0,
+    aoa: 0,
+    warp: 1,
+    q: 0,
+    g: 0,
+    extTemp: 18,
+    intTemp: 21,
+    met: 0
+  });
+  setDirMode('man');
+  $('#b_wp').textContent = '×1';
+  $('#b_th').value = 0;
+  orbitLine.visible = false;
+  hist.length = 0;
+  logs.length = 0;
+  logEl.innerHTML = '';
+  runPoll();
+  log(t('log_ready'));
+}
+
+function countdown() {
+  if (S.ph !== 'pad' || S.cd) return;
+  if (!runPoll()) {
+    say(t('say_nogo'));
+    log(t('log_nogo'));
+    return;
+  }
+  S.cd = true;
+  log(t('log_go'));
+  initAudio();
+}
+
+function applyLanguage() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (I18N[lang][k]) el.textContent = I18N[lang][k];
+  });
+  $('#b_sas').textContent = S.sas ? t('btn_sas_on') : t('btn_sas_off');
+  $('#n_sas').textContent = S.sas ? t('sas_active') : t('sas_off');
+  applyQ();
+  buildVabUI();
+  runPoll();
+  renderTutorial();
+  updateHintText();
+}
+$('#b_lang').onclick = () => {
+  lang = lang === 'ru' ? 'en' : 'ru';
+  applyLanguage();
+};
+
+/* Navball 2D Instrument */
+function drawNavball() {
+  const c = $('#navball'), g = c.getContext('2d');
+  const cx = 44, cy = 44, rad = 40;
+  g.clearRect(0, 0, 88, 88);
+  g.save();
+  g.beginPath();
+  g.arc(cx, cy, rad, 0, TAU);
+  g.clip();
+
+  const pitOffset = ((S.pitch - 90) / 90) * rad;
+  g.fillStyle = '#1b5fa8';
+  g.fillRect(0, 0, 88, cy - pitOffset);
+  g.fillStyle = '#6e4220';
+  g.fillRect(0, cy - pitOffset, 88, 88);
+  g.strokeStyle = '#fff';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.moveTo(0, cy - pitOffset);
+  g.lineTo(88, cy - pitOffset);
+  g.stroke();
+
+  // Target pitch marker
+  const tgtOffset = ((S.targetPitch - 90) / 90) * rad;
+  g.strokeStyle = '#ff7730';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(cx, cy - tgtOffset, 6, 0, TAU);
+  g.stroke();
+
+  // Prograde marker (green)
+  const sp = Math.hypot(S.vx, S.vy);
+  if (sp > 15) {
+    const r = Math.hypot(S.x, S.y), ux = S.x / r, uy = S.y / r, ex = uy, ey = -ux;
+    const proA = Math.atan2(S.vx * ex + S.vy * ey, S.vx * ux + S.vy * uy) * 180 / Math.PI;
+    const proOff = ((proA - 90) / 90) * rad;
+    g.strokeStyle = '#54e89a';
+    g.lineWidth = 1.8;
+    g.beginPath();
+    g.arc(cx, cy - proOff, 4.5, 0, TAU);
+    g.stroke();
+  }
+
+  // Center aircraft reticle
+  g.strokeStyle = '#ffcc4d';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(cx - 14, cy); g.lineTo(cx - 5, cy);
+  g.moveTo(cx + 5, cy); g.lineTo(cx + 14, cy);
+  g.moveTo(cx, cy - 4); g.lineTo(cx, cy + 4);
+  g.stroke();
+  g.restore();
+}
+
+/* ==========================================================================
+   11. CAMERA & INPUT CONTROLS
+   ========================================================================== */
+const cs = { yaw: 0.72, pit: 0.22, dist: 85, T: new V3(0, 28, 0), fly: false };
+let scn = H, mode = 'hangar', camIdx = 0;
+const rdir = new V3(0, 1, 0);
+
+function updCam() {
+  let a = 0;
+  const up = new V3(0, 1, 0);
+  const base = new V3();
+  if (scn === SC) {
+    const r = Math.hypot(S.x, S.y);
+    a = Math.atan2(-S.x / r, S.y / r);
+    up.set(S.x / r, S.y / r, 0);
+    base.copy(rdir).multiplyScalar(26);
+  }
+  const cp = Math.cos(cs.pit);
+  const d = new V3(Math.sin(cs.yaw) * cp, Math.sin(cs.pit), Math.cos(cs.yaw) * cp);
+  const T = cs.T.clone().applyAxisAngle(Z, a).add(base);
+  const O = d.clone().multiplyScalar(cs.dist).applyAxisAngle(Z, a);
+  if (expState.active && expState.shake > 0.01) {
+    T.x += (Math.random() - 0.5) * 14 * expState.shake;
+    T.y += (Math.random() - 0.5) * 14 * expState.shake;
+  }
+  cam.up.copy(up);
+  cam.position.copy(T).add(O);
+  cam.lookAt(cs.dist > 0.5 ? T : T.clone().sub(d.applyAxisAngle(Z, a)));
+  cam.updateMatrixWorld();
+}
+
+function setFly(f) {
+  cs.fly = f;
+  if (f) cs.dist = 0.01;
+  else {
+    cs.dist = scn === H ? 75 : 150;
+    cs.T.set(0, scn === H ? 28 : 0, 0);
+  }
+  $('#h_fl').classList.toggle('on', f);
+  $('#b_fl').classList.toggle('on', f);
+}
+
+function camPreset(n) {
+  cs.fly = false;
+  $('#h_fl').classList.remove('on');
+  $('#b_fl').classList.remove('on');
+  const h = hangarRocket ? hangarRocket.userData.totalH : 58;
+  if (scn === H) {
+    const P = [
+      [0.72, 0.2, h * 1.25, 0, h * 0.48, 0],
+      [0.45, 0.08, 26, 0, h * 0.88, 0],
+      [1.1, -0.05, 22, 0, 5, 0]
+    ][n % 3];
+    [cs.yaw, cs.pit, cs.dist] = P;
+    cs.T.set(P[3], P[4], P[5]);
+  } else {
+    const P = [
+      [0.7, 0.18, 165, 0, 0, 0],
+      [2.2, 0.05, 65, 0, -10, 0],
+      [0.5, 0.15, 950, 0, 0, 0],
+      [1.2, 0.5, 3.8e5, 0, 0, 0]
+    ][n % 4];
+    [cs.yaw, cs.pit, cs.dist] = P;
+    cs.T.set(P[3], P[4], P[5]);
+  }
+}
+
+function updateHintText() {
+  $('#hint').textContent = mode === 'hangar' ? t('hint_hangar') : mode === 'mission' ? t('hint_mc') : t('hint_flight');
+}
+
+function setMode(m) {
+  mode = m;
+  document.body.dataset.m = m;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  scn = m === 'hangar' ? H : SC;
+  camIdx = 0;
+  camPreset(0);
+  updateHintText();
+  if (m === 'space' && S.ph === 'pad') orbitDemo();
+}
+
+function orbitDemo() {
+  S.ph = 'orbit';
+  S.stg = 1;
+  S.boostSep = true;
+  S.fairSep = true;
+  S.p = [0, 55e3];
+  const r = R + 420e3;
+  S.x = r * Math.sin(0.35);
+  S.y = r * Math.cos(0.35);
+  const v = Math.sqrt(MU / r) * 1.015;
+  S.vx = v * Math.cos(0.35);
+  S.vy = -v * Math.sin(0.35);
+  S.pitch = 90;
+  S.targetPitch = 90;
+  S.thr = 0;
+  S.met = 1;
+  log(t('log_demo'));
+  camPreset(3);
+}
+
+const keys = {};
+let pts = new Map(), pd0 = 0;
+const cv = $('#c');
+addEventListener('keydown', e => {
+  keys[e.code] = 1;
+  if (e.code === 'KeyF') setFly(!cs.fly);
+  if (e.code === 'KeyC') camPreset(++camIdx);
+  if (e.code === 'Space') { e.preventDefault(); if (S.ph === 'ascent') doStage(); }
+  if (e.code === 'KeyT') toggleAuto();
+  if (e.code === 'KeyS' && !cs.fly && scn === SC) toggleSAS();
+  if (e.code === 'KeyR') resetSim();
+  if (e.code === 'Enter') countdown();
+  if (e.code === 'Equal' || e.code === 'NumpadAdd') warp(1);
+  if (e.code === 'Minus' || e.code === 'NumpadSubtract') warp(-1);
+  initAudio();
+});
+addEventListener('keyup', e => (keys[e.code] = 0));
+
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  pts.set(e.pointerId, [e.clientX, e.clientY]);
+  pd0 = 0;
+  initAudio();
+});
+cv.addEventListener('pointerup', e => pts.delete(e.pointerId));
+cv.addEventListener('pointercancel', e => pts.delete(e.pointerId));
+cv.addEventListener('pointermove', e => {
+  const p = pts.get(e.pointerId);
+  if (!p) return;
+  const dx = e.clientX - p[0], dy = e.clientY - p[1];
+  if (pts.size === 1) {
+    cs.yaw -= dx * 0.005;
+    cs.pit = Math.max(-1.5, Math.min(1.5, cs.pit + (cs.fly ? -dy : dy) * 0.005));
+  } else if (pts.size === 2) {
+    const o = [...pts].find(([k]) => k !== e.pointerId)[1];
+    const d = Math.hypot(e.clientX - o[0], e.clientY - o[1]);
+    if (pd0) zoom((pd0 - d) * 2.2);
+    pd0 = d;
+  }
+  p[0] = e.clientX;
+  p[1] = e.clientY;
+});
+cv.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY); }, { passive: false });
+
+function zoom(d) {
+  if (cs.fly) {
+    cs.T.add(fwd().multiplyScalar(-d * (scn === H ? 0.05 : 1.2)));
+  } else {
+    const mx = scn === H ? 260 : 6e5;
+    cs.dist = Math.max(scn === H ? 4 : 8, Math.min(mx, cs.dist * Math.exp(d * 0.0012)));
+  }
+}
+function fwd() {
+  const cp = Math.cos(cs.pit);
+  return new V3(-Math.sin(cs.yaw) * cp, -Math.sin(cs.pit), -Math.cos(cs.yaw) * cp);
+}
+
+function toggleAuto() {
+  S.auto = !S.auto;
+  if (S.auto) setDirMode('man');
+  $('#b_au').classList.toggle('on', S.auto);
+  log(S.auto ? t('log_auto_on') : t('log_auto_off'));
+}
+function toggleSAS() {
+  S.sas = !S.sas;
+  $('#b_sas').classList.toggle('ok', S.sas);
+  $('#b_sas').textContent = S.sas ? t('btn_sas_on') : t('btn_sas_off');
+  $('#n_sas').textContent = S.sas ? t('sas_active') : t('sas_off');
+  $('#n_sas').className = S.sas ? 'g' : 'n';
+  log(S.sas ? t('log_sas_on') : t('log_sas_off'));
+}
+function warp(d) {
+  const w = [1, 2, 5, 10, 50, 250, 1000];
+  let idx = w.indexOf(S.warp);
+  if (idx === -1) idx = 0;
+  idx = Math.max(0, Math.min(w.length - 1, idx + d));
+  S.warp = w[idx];
+  $('#b_wp').textContent = '×' + S.warp;
+  $('#b_wp').classList.toggle('on', S.warp > 1);
+}
+
+document.querySelectorAll('#tabs button').forEach(b => (b.onclick = () => setMode(b.dataset.m)));
+document.querySelectorAll('.dir-pad button[data-dir]').forEach(b => {
+  b.onclick = () => setDirMode(b.dataset.dir);
+});
+$('#d_m5').onclick = () => {
+  setDirMode('man');
+  S.targetPitch = (S.targetPitch - 5 + 360) % 360;
+};
+$('#d_p5').onclick = () => {
+  setDirMode('man');
+  S.targetPitch = (S.targetPitch + 5) % 360;
+};
+
+$('#h_ov').onclick = () => camPreset((camIdx = 0));
+$('#h_top').onclick = () => camPreset((camIdx = 1));
+$('#h_eng').onclick = () => camPreset((camIdx = 2));
+$('#h_fl').onclick = () => setFly(!cs.fly);
+$('#b_fl').onclick = () => setFly(!cs.fly);
+$('#b_go').onclick = countdown;
+$('#b_st').onclick = () => S.ph === 'ascent' && doStage();
+$('#b_sas').onclick = toggleSAS;
+$('#b_au').onclick = toggleAuto;
+$('#b_rs').onclick = resetSim;
+$('#b_cm').onclick = () => camPreset(++camIdx);
+$('#b_wm').onclick = () => warp(-1);
+$('#b_wpl').onclick = () => warp(1);
+$('#b_wp').onclick = () => {
+  const w = [1, 2, 5, 10, 50, 250, 1000];
+  const next = (w.indexOf(S.warp) + 1) % w.length;
+  S.warp = w[next];
+  $('#b_wp').textContent = '×' + S.warp;
+  $('#b_wp').classList.toggle('on', S.warp > 1);
+};
+$('#b_th').oninput = e => {
+  if (S.ph === 'ascent' || S.ph === 'orbit') S.thr = e.target.value / 100;
+};
+$('#b_q').onclick = () => {
+  qi = (qi + 1) % 3;
+  dynamicScale = 1.0;
+  applyQ();
+};
+
+let hold = 0;
+const hb = (id, v) => {
+  const b = $(id);
+  b.onpointerdown = () => { hold = v; initAudio(); };
+  b.onpointerup = b.onpointerleave = () => (hold = 0);
+};
+hb('#b_pl', -1);
+hb('#b_pr', 1);
+
+/* Audio Engine (Rocket Rumble + Explosion Boom) */
+let AC, gain, lp;
+function initAudio() {
+  if (AC || !window.AudioContext) return;
+  AC = new AudioContext();
+  const b = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const s = AC.createBufferSource();
+  s.buffer = b;
+  s.loop = true;
+  lp = AC.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 260;
+  gain = AC.createGain();
+  gain.gain.value = 0;
+  s.connect(lp).connect(gain).connect(AC.destination);
+  s.start();
+}
+
+function playExplosionSound() {
+  initAudio();
+  if (!AC) return;
+  if (AC.state === 'suspended') AC.resume();
+  const osc = AC.createOscillator();
+  const g = AC.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(95, AC.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(18, AC.currentTime + 1.4);
+  g.gain.setValueAtTime(0.65, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 1.5);
+  osc.connect(g).connect(AC.destination);
+  osc.start();
+  osc.stop(AC.currentTime + 1.5);
+}
+
+$('#b_au2').onclick = () => {
+  initAudio();
+  if (AC) AC[AC.state === 'running' ? 'suspend' : 'resume']();
+};
+
+/* ==========================================================================
+   12. MAIN SIMULATION & RENDER LOOP
+   ========================================================================== */
+let last = performance.now(), trailT = 0, orbT = 0, cdAnn = -1;
+const fmtAlt = v => (Math.abs(v) >= 1e3 ? (v / 1e3).toFixed(2) + (lang === 'ru' ? ' км' : ' km') : v.toFixed(0) + (lang === 'ru' ? ' м' : ' m'));
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  const tt = now / 1000;
+
+  updateAdaptiveQuality(dt);
+
+  // Free-fly camera movement
+  const spCam = (keys.ShiftLeft ? 4 : 1) * (scn === H ? 24 : (cs.dist < 2e3 ? 85 : cs.dist * 0.4));
+  if (cs.fly || (scn === H && (keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD))) {
+    const f = fwd(), rt = new V3().crossVectors(f, new V3(0, 1, 0)).normalize(), m = new V3();
+    if (keys.KeyW) m.add(f);
+    if (keys.KeyS) m.sub(f);
+    if (keys.KeyD && cs.fly) m.add(rt);
+    if (keys.KeyA && cs.fly) m.sub(rt);
+    if (keys.KeyE) m.y += 1;
+    if (keys.KeyQ) m.y -= 1;
+    if (m.lengthSq() && (cs.fly || scn === H)) cs.T.add(m.multiplyScalar(spCam * dt));
+  }
+  if (scn === H && !cs.fly) {
+    cs.T.y = Math.max(0.5, cs.T.y);
+    if (keys.KeyA || keys.KeyD) cs.yaw += ((keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0)) * dt;
+  }
+
+  // Countdown sequence
+  if (S.cd && S.ph === 'pad') {
+    S.t += dt * S.warp;
+    const c = Math.ceil(-S.t);
+    if (c !== cdAnn && c > 0 && c <= 10) {
+      cdAnn = c;
+      say('T-' + c, 900);
+    }
+    if (c <= 3 && !S.ignLogged) {
+      S.ignLogged = true;
+      log(t('log_ign'));
+    }
+    if (S.t >= 0) {
+      S.ph = 'ascent';
+      S.thr = 1;
+      S.met = 0;
+      $('#b_th').value = 100;
+      log(t('log_liftoff'));
+      say(t('say_liftoff'), 1500);
+    }
+  } else {
+    S.ignLogged = false;
+  }
+
+  // Physics sub-stepping
+  if (S.ph === 'ascent' || S.ph === 'orbit') {
+    const total = dt * S.warp;
+    const maxStep = S.ph === 'ascent' && S.thr > 0 ? 0.05 : 0.25;
+    const n = Math.min(600, Math.max(1, Math.ceil(total / maxStep)));
+    const h = total / n;
+
+    if (!S.auto && S.dirMode === 'man') {
+      const rate = 28 * dt;
+      if (hold) S.targetPitch = (S.targetPitch + hold * rate + 360) % 360;
+      if (keys.KeyA) S.targetPitch = (S.targetPitch - rate + 360) % 360;
+      if (keys.KeyD) S.targetPitch = (S.targetPitch + rate) % 360;
+    }
+    if (keys.KeyZ) { S.thr = Math.min(1, S.thr + dt); $('#b_th').value = S.thr * 100; }
+    if (keys.KeyX) { S.thr = Math.max(0, S.thr - dt); $('#b_th').value = S.thr * 100; }
+
+    S.met += total;
+    for (let i = 0; i < n; i++) stepPhysics(h);
+
+    if (S.ph === 'ascent') {
+      const o = orb();
+      if (o && o.per > 165e3) {
+        S.ph = 'orbit';
+        S.thr = 0;
+        $('#b_th').value = 0;
+        log(`${t('log_orbit')} ${(o.per / 1e3).toFixed(0)}×${(o.apo / 1e3).toFixed(0)} km`);
+        say(t('say_orbit'), 3600);
+      } else if (S.p[1] <= 0 && S.stg === 1 && !o) {
+        log(t('log_suborb'));
+      }
+    }
+  }
+
+  // Update Debris trajectories
+  for (let i = debrisList.length - 1; i >= 0; i--) {
+    const d = debrisList[i];
+    const r = Math.hypot(d.x, d.y);
+    const g = MU / (r * r * r);
+    d.vx -= g * d.x * dt;
+    d.vy -= g * d.y * dt;
+    d.x += d.vx * dt;
+    d.y += d.vy * dt;
+    d.t += dt;
+    d.mesh.position.set(d.x - S.x, d.y - S.y, 0);
+    d.mesh.rotation.z = d.rz + d.t * d.spin;
+    if (d.t > 120 || r < R) {
+      SC.remove(d.mesh);
+      debrisList.splice(i, 1);
+    }
+  }
+
+  // Update Explosion & Particles
+  if (expState.active) {
+    expState.t += dt;
+    expState.shake = Math.max(0, 1 - expState.t * 0.65);
+    const sc = 8 + expState.t * 75;
+    expFire.scale.setScalar(sc);
+    expCore.scale.setScalar(sc * 0.7);
+    expWave.scale.setScalar(sc * 1.65);
+    const fade = Math.max(0, 1 - expState.t * 0.55);
+    expFire.material.opacity = fade * 0.85;
+    expCore.material.opacity = Math.max(0, 1 - expState.t * 1.1);
+    expWave.material.opacity = fade * 0.6;
+    if (expState.t > 2.2) {
+      expGrp.visible = false;
+      expState.active = false;
+    }
+  }
+
+  for (let i = 0; i < MAX_P; i++) {
+    const p = pVel[i];
+    if (p.life > 0) {
+      p.life -= dt;
+      if (p.life <= 0) {
+        pPos[i * 3 + 1] = -9e8;
+        pCol[i * 3] = pCol[i * 3 + 1] = pCol[i * 3 + 2] = 0;
+      } else {
+        pPos[i * 3] += p.vx * dt;
+        pPos[i * 3 + 1] += p.vy * dt;
+        pPos[i * 3 + 2] += p.vz * dt;
+        const k = p.life / p.max;
+        if (p.kind === 1) {
+          pCol[i * 3] = 1.0 * k;
+          pCol[i * 3 + 1] = 0.52 * k * k;
+          pCol[i * 3 + 2] = 0.14 * k * k;
+        } else {
+          pCol[i * 3] = 0.92 * k;
+          pCol[i * 3 + 1] = 0.88 * k;
+          pCol[i * 3 + 2] = 0.84 * k;
+        }
+      }
+    }
+  }
+  pGeo.attributes.position.needsUpdate = true;
+  pGeo.attributes.color.needsUpdate = true;
+
+  // Record chart history
+  if (S.ph === 'orbit' || S.ph === 'ascent') {
+    trailT += dt;
+    if (trailT > 1) {
+      trailT = 0;
+      hist.push([S.met, (Math.hypot(S.x, S.y) - R) / 1e3, Math.hypot(S.vx, S.vy) / 1e3]);
+      if (hist.length > 300) hist.shift();
+    }
+  }
+
+  // Render Transformations
+  const r = Math.hypot(S.x, S.y), ux = S.x / r, uy = S.y / r, ex = uy, ey = -ux, alt = r - R;
+  const th = S.pitch * Math.PI / 180;
+  const dx = ux * Math.cos(th) + ex * Math.sin(th);
+  const dy = uy * Math.cos(th) - ux * Math.sin(th);
+  rdir.set(dx, dy, 0);
+
+  rS.rotation.z = S.ph === 'pad' ? 0 : Math.atan2(-dx, dy);
+  earth.position.set(-S.x, -S.y, 0);
+  clouds.position.copy(earth.position);
+  clouds.rotation.y = tt * 0.0018;
+  atm.position.copy(earth.position);
+  moon.position.copy(earth.position).addScaledVector(moonDir, 1.8e7);
+  stars.position.copy(cam.position);
+  pad.position.set(-S.x, R - S.y, 0);
+  pad.visible = alt < 8000;
+
+  // Engine Plume, Launch Smoke & Max-Q Vapor Cone
+  const on = S.F > 0 && S.thr > 0 && rS.visible;
+  const L = on ? (S.stg ? 22 : 38) * (S.thr * 0.7 + 0.3) * (1 + 0.1 * Math.sin(tt * 75)) : 0.01;
+  plume.visible = core.visible = on;
+  const expand = 1 + Math.min(3.5, alt / 65e3);
+  plume.scale.set(expand, L, expand);
+  core.scale.set(1, L * 0.55, 1);
+  const by = S.stg ? rS.userData.y2 : 0;
+  plume.position.y = by - L / 2;
+  core.position.y = by - L * 0.275;
+  plL.position.y = by - 4;
+  plL.intensity = on ? 3200 * S.thr * (0.85 + 0.15 * Math.random()) : 0;
+
+  if (on && alt < 1800) {
+    for (let k = 0; k < 2; k++) {
+      spawnParticle(
+        (Math.random() - 0.5) * 4,
+        -2,
+        (Math.random() - 0.5) * 4,
+        (Math.random() - 0.5) * 28,
+        -12 - Math.random() * 14,
+        (Math.random() - 0.5) * 28,
+        1.4,
+        0
+      );
+    }
+  }
+
+  // Max-Q Transonic Condensation Cone
+  if (rS.visible && S.q > 12000 && alt < 32000) {
+    machCone.visible = true;
+    machCone.position.y = rS.userData.totalH - 6;
+    machCone.material.opacity = Math.min(0.45, ((S.q - 12000) / 22000) * 0.45);
+  } else {
+    machCone.visible = false;
+  }
+
+  // High-G Tunnel Vision Vignette
+  if (mode !== 'hangar' && S.g > 3.2 && S.ph !== 'crash') {
+    $('#g_vignette').style.opacity = Math.min(0.92, (S.g - 3.2) / 5.5).toFixed(2);
+  } else {
+    $('#g_vignette').style.opacity = '0';
+  }
+
+  // Orbit Trajectory Prediction
+  orbT += dt;
+  if (orbT > 0.35 && (S.ph === 'orbit' || (S.ph === 'ascent' && alt > 65e3))) {
+    orbT = 0;
+    const o = orb();
+    if (o && o.e < 0.98) {
+      const p = o.a * (1 - o.e * o.e), w = Math.atan2(o.ey, o.ex), linePts = [];
+      for (let i = 0; i <= 180; i++) {
+        const nu = (i / 180) * TAU, rr = p / (1 + o.e * Math.cos(nu));
+        linePts.push(rr * Math.cos(w + nu) - S.x, rr * Math.sin(w + nu) - S.y, 0);
+      }
+      orbitLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
+      orbitLine.visible = true;
+    } else {
+      orbitLine.visible = false;
+    }
+  }
+  if (S.ph === 'pad') orbitLine.visible = false;
+
+  // Audio synthesis update
+  if (gain) {
+    const v = on ? S.thr * (0.52 * Math.exp(-alt / 45e3) + 0.05) : 0;
+    gain.gain.setTargetAtTime(v, AC.currentTime, 0.1);
+    lp.frequency.value = 170 + S.thr * 170;
+  }
+
+  // Telemetry & HUD Update
+  if (mode !== 'hangar') {
+    const o = orb();
+    $('#t_met').textContent = S.ph === 'pad' ? 'T' + (S.t < 0 ? '-' : '+') + Math.abs(S.t).toFixed(1) : 'T+' + S.met.toFixed(0) + ' s';
+    $('#t_alt').textContent = fmtAlt(Math.max(0, alt));
+    $('#t_v').textContent = Math.hypot(S.vx, S.vy).toFixed(0) + (lang === 'ru' ? ' м/с' : ' m/s');
+    $('#t_ap').textContent = o ? `${(o.apo / 1e3).toFixed(0)} / ${(o.per / 1e3).toFixed(0)} km` : '—';
+    $('#t_st').textContent = `${S.stg + 1} / ${(S.thr * 100).toFixed(0)}%`;
+    $('#t_m').textContent = (currentMass() / 1e3).toFixed(1) + ' t';
+    $('#t_g').textContent = `${S.g.toFixed(1)} g / ${(S.q / 1e3).toFixed(1)} kPa`;
+    const extStr = (S.extTemp >= 0 ? '+' : '') + S.extTemp.toFixed(0) + '°C';
+    const intStr = (S.intTemp >= 0 ? '+' : '') + S.intTemp.toFixed(1) + '°C';
+    $('#t_temp').textContent = `${extStr} / ${intStr}`;
+    $('#t_temp').style.color = S.extTemp > 900 ? 'var(--bad)' : S.extTemp > 250 ? 'var(--warn)' : 'var(--ac)';
+    $('#t_ph').textContent = t('ph_' + S.ph);
+
+    $('#n_pit').textContent = `${S.pitch.toFixed(1)}° / ${S.targetPitch.toFixed(1)}°`;
+    $('#n_aoa').textContent = `${S.aoa.toFixed(1)}°`;
+    $('#n_aoa').style.color = Math.abs(S.aoa) > 15 ? 'var(--bad)' : 'var(--ac)';
+    $('#n_rate').textContent = `${S.omega.toFixed(1)} °/s`;
+
+    drawNavball();
+    if (mode === 'mission') chart();
+  }
+
+  checkTutorialProgress();
+  updCam();
+  ren.render(scn, cam);
+}
+
+function chart() {
+  const c = $('#ch'), g = c.getContext('2d');
+  g.clearRect(0, 0, 320, 74);
+  g.strokeStyle = 'rgba(130,185,255,.2)';
+  g.strokeRect(0.5, 0.5, 319, 73);
+  if (hist.length < 2) return;
+  const mx = Math.max(1, ...hist.map(h => h[1])), mv = Math.max(1, ...hist.map(h => h[2]));
+  [[1, mx, '#6fd0ff'], [2, mv, '#ff7730']].forEach(([k, m, col]) => {
+    g.strokeStyle = col;
+    g.lineWidth = 1.6;
+    g.beginPath();
+    hist.forEach((h, i) => {
+      const x = (i / (hist.length - 1)) * 318 + 1;
+      const y = 72 - (h[k] / m) * 68;
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    });
+    g.stroke();
+  });
+}
+
+// Initialize Everything
+applyPreset('med');
+applyLanguage();
+setMode('hangar');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
